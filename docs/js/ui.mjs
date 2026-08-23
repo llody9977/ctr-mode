@@ -8,12 +8,13 @@ import {
   simulateCounterRollover,
   compareTamperDetection,
 } from "./attacks.mjs";
+import { raw, html } from "./html.mjs";
 
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-function verdict(el, kind, html) {
+
+function verdict(el, kind, markup) {
   el.className = `verdict show ${kind}`;
-  el.innerHTML = html;
+  el.innerHTML = markup;
 }
 
 // ===========================================================================
@@ -29,14 +30,13 @@ async function issueNormalToken() {
   lastIssuedToken = await profileService.issueToken(email);
   const role = await profileService.roleForToken(lastIssuedToken);
 
-  $("v1-out").innerHTML =
-    `<div class="diff-box">` +
-    `<strong>Issued Plaintext:</strong> <code>${esc(lastIssuedPlaintext)}</code><br>` +
-    `<strong style="margin-top:6px;display:inline-block">Ciphertext (AES-CTR):</strong> <code>${toHex(lastIssuedToken)}</code><br>` +
-    `<strong style="margin-top:6px;display:inline-block">Server verified role:</strong> <span class="clean">${esc(role)}</span>` +
-    `</div>`;
+  $("v1-out").innerHTML = html`<div class="diff-box">` +
+    html`<strong>Issued Plaintext:</strong> <code>${lastIssuedPlaintext}</code><br>` +
+    html`<strong style="margin-top:6px;display:inline-block">Ciphertext (AES-CTR):</strong> <code>${toHex(lastIssuedToken)}</code><br>` +
+    html`<strong style="margin-top:6px;display:inline-block">Server verified role:</strong> <span class="clean">${role}</span>` +
+    html`</div>`;
 
-  verdict($("v1-verdict"), "good", `Standard token issued. Server decrypted and verified role = <strong>${esc(role)}</strong>.`);
+  verdict($("v1-verdict"), "good", html`Standard token issued. Server decrypted and verified role = <strong>${role}</strong>.`);
 }
 
 async function runBitFlip() {
@@ -58,20 +58,19 @@ async function runBitFlip() {
   const hexLen = oldSub.length * 2;
 
   const highlightedCt =
-    esc(tamperedHex.slice(0, hexStart)) +
-    `<span class="flip">${esc(tamperedHex.slice(hexStart, hexStart + hexLen))}</span>` +
-    esc(tamperedHex.slice(hexStart + hexLen));
+    html`${tamperedHex.slice(0, hexStart)}` +
+    html`<span class="flip">${tamperedHex.slice(hexStart, hexStart + hexLen)}</span>` +
+    html`${tamperedHex.slice(hexStart + hexLen)}`;
 
-  $("v1-out").innerHTML =
-    `<div class="diff-box">` +
-    `<strong>Tampered Ciphertext (Delta injected at byte ${offset}):</strong><br><code>${highlightedCt}</code><br>` +
-    `<strong style="margin-top:6px;display:inline-block">Injected XOR Delta (hex):</strong> <code>${toHex(delta)}</code> ("${oldSub}" ⊕ "${newSub}")<br>` +
-    `<strong style="margin-top:6px;display:inline-block">Server Decrypted Plaintext:</strong> <code>${esc(fullPlaintext)}</code><br>` +
-    `<strong style="margin-top:6px;display:inline-block">Server Accepted Role:</strong> <span class="flip">${esc(forgedRole)}</span>` +
-    `</div>`;
+  $("v1-out").innerHTML = html`<div class="diff-box">` +
+    html`<strong>Tampered Ciphertext (Delta injected at byte ${offset}):</strong><br><code>${raw(highlightedCt)}</code><br>` +
+    html`<strong style="margin-top:6px;display:inline-block">Injected XOR Delta (hex):</strong> <code>${toHex(delta)}</code> ("${oldSub}" ⊕ "${newSub}")<br>` +
+    html`<strong style="margin-top:6px;display:inline-block">Server Decrypted Plaintext:</strong> <code>${fullPlaintext}</code><br>` +
+    html`<strong style="margin-top:6px;display:inline-block">Server Accepted Role:</strong> <span class="flip">${forgedRole}</span>` +
+    html`</div>`;
 
   verdict($("v1-verdict"), "bad",
-    `<strong>Privilege Escalation Succeeded!</strong> Flipping 4 ciphertext bytes modified the decrypted role to <strong>${esc(forgedRole)}</strong> with zero decryption errors and zero corruption of surrounding bytes.`
+    html`<strong>Privilege Escalation Succeeded!</strong> Flipping 4 ciphertext bytes modified the decrypted role to <strong>${forgedRole}</strong> with zero decryption errors and zero corruption of surrounding bytes.`
   );
 }
 
@@ -101,7 +100,7 @@ async function runTwoTimePadEncrypt() {
   updateCribView();
 
   verdict($("v2-verdict"), "bad",
-    `<strong>Keystream S has cancelled out!</strong> <code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code>. The shared key has zero influence on this XOR stream.`
+    html`<strong>Keystream S has cancelled out!</strong> <code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code>. The shared key has zero influence on this XOR stream.`
   );
 }
 
@@ -122,8 +121,8 @@ function updateCribView() {
 
   const res = cribDrag(currentXorStream, cribStr, offset);
   $("v2-crib-result").innerHTML =
-    `Candidate plaintext under crib at offset ${offset}: <strong>"${esc(res.candidateText)}"</strong>` +
-    `<br><span class="muted">Printable: <code>${esc(res.printableText)}</code></span>`;
+    html`Candidate plaintext under crib at offset ${offset}: <strong>"${res.candidateText}"</strong>` +
+    html`<br><span class="muted">Printable: <code>${res.printableText}</code></span>`;
 }
 
 function runKnownPlaintextRecover() {
@@ -132,7 +131,7 @@ function runKnownPlaintextRecover() {
   const recovered = knownPlaintextRecover(ct1Global, ct2Global, utf8(knownP1));
   $("v2-recovered-p2").textContent = utf8Decode(recovered);
   verdict($("v2-verdict"), "bad",
-    `<strong>Full Message 2 Recovered:</strong> Using known plaintext P₁, Message 2 was computed instantly as <code>P₂ = (C₁ ⊕ C₂) ⊕ P₁</code> without any brute-force or key search.`
+    html`<strong>Full Message 2 Recovered:</strong> Using known plaintext P₁, Message 2 was computed instantly as <code>P₂ = (C₁ ⊕ C₂) ⊕ P₁</code> without any brute-force or key search.`
   );
 }
 
@@ -156,10 +155,10 @@ async function runDocExtraction() {
   const { rawKeystream, recoveredText } = await recoverPlaintextViaEditOracle(documentService);
 
   $("v3-keystream").textContent = toHex(rawKeystream);
-  $("v3-recovered-text").innerHTML = `<span class="flip">${esc(recoveredText)}</span>`;
+  $("v3-recovered-text").innerHTML = html`<span class="flip">${recoveredText}</span>`;
 
   verdict($("v3-verdict"), "bad",
-    `<strong>100% of Plaintext Recovered in a Single Request!</strong> By requesting an edit with <code>0x00</code> bytes, the oracle returned <code>0x00 ⊕ S = S</code> (raw keystream). XORing with original ciphertext produced the entire secret.`
+    html`<strong>100% of Plaintext Recovered in a Single Request!</strong> By requesting an edit with <code>0x00</code> bytes, the oracle returned <code>0x00 ⊕ S = S</code> (raw keystream). XORing with original ciphertext produced the entire secret.`
   );
 }
 
@@ -174,18 +173,18 @@ async function runCounterRollover() {
 
   const listHtml = blocks.map((b) => {
     const isDup = duplicates.some((d) => d.duplicateBlockIndex === b.blockIndex);
-    return `<div class="blk ${isDup ? "match" : ""}">` +
-           `<div class="blk-label">Block ${b.blockIndex + 1} (Counter: ${b.counterVal})</div>` +
-           `<div class="blk-hex">${b.keystreamHex.slice(0, 16)}…</div>` +
-           (isDup ? `<div class="blk-tag">⚠ Duplicate Keystream</div>` : "") +
-           `</div>`;
+    return html`<div class="blk ${isDup ? "match" : ""}">` +
+           html`<div class="blk-label">Block ${b.blockIndex + 1} (Counter: ${b.counterVal})</div>` +
+           html`<div class="blk-hex">${b.keystreamHex.slice(0, 16)}…</div>` +
+           (isDup ? html`<div class="blk-tag">⚠ Duplicate Keystream</div>` : "") +
+           html`</div>`;
   }).join("");
 
   $("v4-blocks-out").innerHTML = listHtml;
 
   if (duplicates.length > 0) {
     verdict($("v4-verdict"), "bad",
-      `<strong>Counter Overflow Detected:</strong> With a ${bits}-bit counter (max value ${(1 << bits) - 1}), the counter wrapped, reproducing identical keystream blocks. Long streams or packet counters that wrap reuse keystream and cause two-time pad vulnerability within the same session.`
+      html`<strong>Counter Overflow Detected:</strong> With a ${bits}-bit counter (max value ${(1 << bits) - 1}), the counter wrapped, reproducing identical keystream blocks. Long streams or packet counters that wrap reuse keystream and cause two-time pad vulnerability within the same session.`
     );
   }
 }
@@ -198,31 +197,31 @@ async function runCounterRollover() {
 function markTamper(hex, byteOffset, byteLen) {
   const a = byteOffset * 2;
   const b = a + byteLen * 2;
-  return esc(hex.slice(0, a)) + `<span class="flip">${esc(hex.slice(a, b))}</span>` + esc(hex.slice(b));
+  return html`${hex.slice(0, a)}` + html`<span class="flip">${hex.slice(a, b)}</span>` + html`${hex.slice(b)}`;
 }
 
 function schemeCard(index, r, deltaLen) {
   const blocked = r.detected;
   const badge = blocked
-    ? `<span class="badge pass">Tampering detected</span>`
-    : `<span class="badge fail">Forgery accepted</span>`;
+    ? html`<span class="badge pass">Tampering detected</span>`
+    : html`<span class="badge fail">Forgery accepted</span>`;
   const before = r.payloadHex ?? r.ciphertextHex;
   const label = r.payloadHex ? "Payload (counter ‖ ciphertext ‖ HMAC)" : "Ciphertext";
 
   const outcome = blocked
-    ? `<strong>Server returned:</strong> <span class="clean">nothing — ${esc(r.error)}</span><br>` +
-      `<span class="muted">The tag was checked before decryption, so no plaintext was ever produced.</span>`
-    : `<strong>Server decrypted:</strong> <code>${esc(r.plaintextReturned)}</code><br>` +
-      `<strong style="margin-top:6px;display:inline-block">Role accepted:</strong> <span class="flip">${esc(r.roleAccepted)}</span>`;
+    ? html`<strong>Server returned:</strong> <span class="clean">nothing — ${r.error}</span><br>` +
+      html`<span class="muted">The tag was checked before decryption, so no plaintext was ever produced.</span>`
+    : html`<strong>Server decrypted:</strong> <code>${r.plaintextReturned}</code><br>` +
+      html`<strong style="margin-top:6px;display:inline-block">Role accepted:</strong> <span class="flip">${r.roleAccepted}</span>`;
 
-  return `<div class="scheme ${blocked ? "pass" : "fail"}">` +
-    `<div class="scheme-head"><span class="scheme-name">${index} · ${esc(r.scheme)}</span>${badge}</div>` +
-    `<div class="diff-box">` +
-      `<strong>${label} after tampering:</strong><br>` +
-      `<code class="hexline">${markTamper(r.tamperedHex, r.tamperOffset, deltaLen)}</code><br>` +
-      `<span class="muted">unchanged original: <code class="hexline">${esc(before.slice(0, 48))}…</code></span><br>` +
-      `<div style="margin-top:8px">${outcome}</div>` +
-    `</div></div>`;
+  return html`<div class="scheme ${blocked ? "pass" : "fail"}">` +
+    html`<div class="scheme-head"><span class="scheme-name">${index} · ${r.scheme}</span>${raw(badge)}</div>` +
+    html`<div class="diff-box">` +
+      html`<strong>${label} after tampering:</strong><br>` +
+      html`<code class="hexline">${raw(markTamper(r.tamperedHex, r.tamperOffset, deltaLen))}</code><br>` +
+      html`<span class="muted">unchanged original: <code class="hexline">${before.slice(0, 48)}…</code></span><br>` +
+      html`<div style="margin-top:8px">${raw(outcome)}</div>` +
+    html`</div></div>`;
 }
 
 async function runDefenceComparison() {
@@ -233,22 +232,21 @@ async function runDefenceComparison() {
     const cmp = await compareTamperDetection(email);
     const deltaLen = cmp.deltaHex.length / 2;
 
-    $("def-attack").innerHTML =
-      `<div class="diff-box">` +
-      `<strong>Issued plaintext:</strong> <code>${esc(cmp.profile)}</code><br>` +
-      `<strong style="margin-top:6px;display:inline-block">Attacker's move (identical in all three):</strong> ` +
-      `XOR <code>${esc(cmp.deltaHex)}</code> into the ciphertext at byte ${cmp.offset}, ` +
-      `turning <code>role=${esc(cmp.oldRole)}</code> into <code>role=${esc(cmp.newRole)}</code>.` +
-      `</div>`;
+    $("def-attack").innerHTML = html`<div class="diff-box">` +
+      html`<strong>Issued plaintext:</strong> <code>${cmp.profile}</code><br>` +
+      html`<strong style="margin-top:6px;display:inline-block">Attacker's move (identical in all three):</strong> ` +
+      html`XOR <code>${cmp.deltaHex}</code> into the ciphertext at byte ${cmp.offset}, ` +
+      html`turning <code>role=${cmp.oldRole}</code> into <code>role=${cmp.newRole}</code>.` +
+      html`</div>`;
 
     $("def-results").innerHTML = cmp.results.map((r, i) => schemeCard(i + 1, r, deltaLen)).join("");
 
     const detected = cmp.results.filter((r) => r.detected).length;
     verdict($("def-verdict"), detected === 2 ? "good" : "bad",
-      `<strong>Same attack, three outcomes.</strong> Raw AES-CTR had no tag to check, so the forged ` +
-      `<code>role=${esc(cmp.newRole)}</code> was decrypted and accepted. Both AES-CTR + HMAC and AES-GCM ` +
-      `rejected the identical modification before returning any plaintext. The keystream encryption is the ` +
-      `same in all three — only the authentication differs.`
+      html`<strong>Same attack, three outcomes.</strong> Raw AES-CTR had no tag to check, so the forged ` +
+      html`<code>role=${cmp.newRole}</code> was decrypted and accepted. Both AES-CTR + HMAC and AES-GCM ` +
+      html`rejected the identical modification before returning any plaintext. The keystream encryption is the ` +
+      html`same in all three — only the authentication differs.`
     );
   } finally {
     btn.disabled = false;

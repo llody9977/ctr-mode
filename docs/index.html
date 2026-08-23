@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why AES-CTR mode is unsafe without authentication — interactive</title>
+<meta name="description" content="Why AES-CTR is unsafe without authentication: stream malleability, two-time pad keystream reuse, oracle extraction, and interactive in-browser demonstrations running real AES.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔓</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+  <div class="eyebrow">Cryptography / Failure analysis</div>
+  <h1>AES-CTR mode is unsafe without authentication</h1>
+  <p class="lede">Counter (CTR) mode turns a block cipher into a synchronous stream cipher by encrypting sequential counter blocks to generate a keystream, then XORing it with plaintext: <code>C = P ⊕ S</code>. Because bitwise XOR has zero error propagation, CTR mode is completely malleable: flipping a bit in ciphertext flips the exact corresponding bit in decrypted plaintext with 100% certainty. Furthermore, reusing a counter block under the same key completely cancels the keystream (<code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code>), destroying confidentiality outright.</p>
+  <p class="muted">Every attack below runs live in your browser against <strong>real AES</strong> via the Web Crypto API — locally executed in-process with zero network requests. <a href="https://github.com/llody9977/ctr-mode">Source &amp; tests on GitHub →</a></p>
+</header>
+
+<main>
+  <div class="callout warn">
+    <span class="callout-title">Scope — educational / defensive use</span>
+    <p style="margin:0">These demonstrations exist to help engineers and security researchers detect, prevent, and remediate unauthenticated CTR mode misuse. Each demonstration executes against a self-contained, in-memory oracle. Every vulnerability is paired directly with its cryptographic mitigation. Do not test these techniques against systems you do not own or are not explicitly authorized to evaluate.</p>
+  </div>
+
+  <h2>The mechanism</h2>
+  <p>NIST defines Counter mode in <a href="https://csrc.nist.gov/pubs/sp/800/38/a/final">SP 800-38A</a> §6.5. A counter generation function produces a sequence of distinct 128-bit blocks <code>T₁, T₂, …, Tₙ</code> (typically constructed as <code>Nonce ∥ Counter</code>). Each counter block is encrypted with the block cipher under key <code>K</code> to produce keystream blocks <code>Sᵢ = E_K(Tᵢ)</code>. The ciphertext is produced by XORing plaintext with the keystream: <code>Cᵢ = Pᵢ ⊕ Sᵢ</code>. Decryption performs the exact same operation: <code>Pᵢ = Cᵢ ⊕ Sᵢ</code>.</p>
+  <p>Unlike ECB or CBC, CTR mode requires no padding: the keystream is truncated to the exact byte length of the plaintext. While this enables high performance, random access, and parallel processing, it inherits the fundamental vulnerabilities of synchronous stream ciphers when used without an authentication tag.</p>
+
+  <figure>
+    <img src="diagrams/modes-ctr-gcm-cbc.svg" alt="Schematic comparing AES-CTR, AES-CBC, and AES-GCM: CTR generates keystream via counter blocks and XORs plaintext directly; CBC chains ciphertext into subsequent plaintext blocks; GCM combines CTR keystream with a GMAC authentication tag to prevent tampering.">
+  </figure>
+
+  <h2>Three root causes, four attack vectors</h2>
+  <p>All CTR mode vulnerabilities trace back to three fundamental root causes:</p>
+  <ol>
+    <li><strong>Stream-Cipher Malleability</strong>: Bitwise XOR has no error diffusion. Modifying ciphertext bit <code>i</code> alters decrypted plaintext bit <code>i</code> without corrupting adjacent bytes.</li>
+    <li><strong>Keystream Determinism</strong>: Under a fixed key, a given counter block <code>T</code> always produces the exact same keystream block <code>S</code>. Reusing a nonce reproduces the keystream.</li>
+    <li><strong>Absence of Integrity / Authentication</strong>: Ciphertexts contain no authentication tag or MAC. Tampered or spliced ciphertexts decrypt cleanly without error.</li>
+  </ol>
+
+  <figure>
+    <img src="diagrams/taxonomy.svg" alt="Taxonomy tree showing how Malleability, Keystream Determinism, and Missing Authentication lead to Precision Bit-Flipping, Two-Time Pad Keystream Reuse, Random-Access Edit Extraction, and Counter Rollover Collisions.">
+  </figure>
+
+  <!-- VECTOR 1 -->
+  <h2>Vector 1 — Precision bit-flipping / privilege escalation</h2>
+  <p>Because encryption is <code>C = P ⊕ S</code>, decryption calculates <code>P' = C' ⊕ S</code>. If an attacker injects a differential <code>Δ</code> into the ciphertext at offset <code>k</code> (<code>C' = C ⊕ Δ</code>), the server decrypts <code>P' = (C ⊕ Δ) ⊕ S = (P ⊕ S ⊕ Δ) ⊕ S = P ⊕ Δ</code>. An attacker who knows or predicts a target field (such as <code>role=user</code> or <code>transfer_amount=000100</code>) can flip specific bits to forge <code>role=root</code> or <code>transfer_amount=999999</code>. There is zero avalanche effect and zero decryption error (<a href="https://cryptopals.com/sets/4/challenges/26">Cryptopals Set 4 Challenge 26</a>).</p>
+
+  <figure>
+    <img src="diagrams/vector1-bit-flipping.svg" alt="Diagram showing the step-by-step math of bit-flipping: C = P XOR S; injecting delta into C directly injects delta into decrypted plaintext P prime, turning role=user into role=root with zero errors.">
+  </figure>
+
+  <div class="demo" id="demo-v1">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Precision token bit-flipping playground</h3>
+    <p class="hint">The service issues encrypted tokens for user accounts (<code>email=...&amp;uid=1000&amp;role=user</code>). You never see the AES key.</p>
+    <label for="v1-email">Account Email</label>
+    <input type="text" id="v1-email" value="alice@example.com">
+    <label for="v1-role">Target Role to Forge</label>
+    <select id="v1-role">
+      <option value="root">root (4 bytes, matching "user")</option>
+      <option value="admn">admn (4 bytes, matching "user")</option>
+    </select>
+    <div class="row">
+      <button id="v1-issue" class="secondary">Issue normal token</button>
+      <button id="v1-flip" class="danger">Flip bits in ciphertext</button>
+    </div>
+    <div id="v1-out" style="margin-top:14px"></div>
+    <div class="verdict" id="v1-verdict"></div>
+  </div>
+
+  <!-- VECTOR 2 -->
+  <h2>Vector 2 — Keystream reuse / two-time pad &amp; crib-dragging</h2>
+  <p>If two distinct messages are encrypted under the same key and initial counter block: <code>C₁ = P₁ ⊕ S</code> and <code>C₂ = P₂ ⊕ S</code>. XORing both ciphertexts completely removes the keystream: <code>C₁ ⊕ C₂ = (P₁ ⊕ S) ⊕ (P₂ ⊕ S) = P₁ ⊕ P₂</code>. The secret key has zero influence on this result (<a href="https://cryptopals.com/sets/3/challenges/19">Cryptopals Set 3 Challenges 19 &amp; 20</a>).</p>
+  <p>This enables two powerful attacks without ever breaking AES:</p>
+  <ul>
+    <li><strong>Known-Plaintext Recovery</strong>: If any part of <code>P₁</code> is known (e.g. standard headers, XML/JSON tags, fixed prefixes), the corresponding bytes of <code>P₂</code> are computed instantly: <code>P₂ = (C₁ ⊕ C₂) ⊕ P₁</code>.</li>
+    <li><strong>Statistical Crib-Dragging</strong>: An attacker guesses common words ("the", "TRANSFER", "HTTP/1.1") and drags them across <code>C₁ ⊕ C₂</code>. When readable natural language appears, both plaintexts are simultaneously revealed.</li>
+  </ul>
+
+  <figure>
+    <img src="diagrams/vector2-two-time-pad.svg" alt="Visualizing two-time pad keystream cancellation: C1 XOR C2 yields P1 XOR P2. Dragging a candidate crib across the stream reveals candidate plaintext bytes directly.">
+  </figure>
+
+  <div class="demo" id="demo-v2">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Two-time pad keystream cancellation &amp; crib dragging</h3>
+    <label for="v2-p1">Plaintext Message 1</label>
+    <input type="text" id="v2-p1" value="TRANSFER $00500 TO ACCOUNT #100">
+    <label for="v2-p2">Plaintext Message 2</label>
+    <input type="text" id="v2-p2" value="MEETING AT MIDNIGHT AT DOCKS #9">
+    <div class="row">
+      <button id="v2-encrypt">Encrypt both under same (Key, Nonce)</button>
+    </div>
+    <label style="margin-top:12px">Ciphertext XOR Stream (<code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code> in hex)</label>
+    <div class="diff-box" id="v2-xor-hex"></div>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:1 1 200px">
+        <label for="v2-crib-input">Test Crib Word</label>
+        <input type="text" id="v2-crib-input" value="TRANSFER">
+      </div>
+      <div style="flex:1 1 200px">
+        <label for="v2-crib-offset">Crib Drag Offset: <span id="v2-offset-val">0</span></label>
+        <input type="range" id="v2-crib-offset" min="0" max="30" value="0" style="width:100%">
+      </div>
+    </div>
+    <div class="diff-box" id="v2-crib-result" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="v2-known-p1" class="secondary">Recover P₂ using known P₁</button>
+    </div>
+    <div class="diff-box" style="margin-top:10px">
+      <strong>Recovered Message 2:</strong> <span id="v2-recovered-p2" class="clean">[Click button above]</span>
+    </div>
+    <div class="verdict" id="v2-verdict"></div>
+  </div>
+
+  <!-- VECTOR 3 -->
+  <h2>Vector 3 — Random-access read/write keystream extraction</h2>
+  <p>Many systems expose seekable or editable encrypted stores (such as disk image storage, encrypted databases, or collaborative document APIs) offering an <code>edit(ciphertext, offset, new_text)</code> endpoint. In unauthenticated CTR mode, an attacker can overwrite the ciphertext with all-zero bytes (<code>0x00</code>). Because <code>0x00 ⊕ S = S</code>, the ciphertext returned by the server <strong>is the raw keystream itself</strong>. XORing this extracted keystream with the original ciphertext instantly recovers 100% of the secret plaintext in a single request (<a href="https://cryptopals.com/sets/4/challenges/25">Cryptopals Set 4 Challenge 25</a>).</p>
+
+  <div class="demo" id="demo-v3">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Document editor keystream extraction oracle</h3>
+    <label for="v3-doc-text">Confidential Document stored on Server</label>
+    <textarea id="v3-doc-text">CONFIDENTIAL: Launch authorization code 9481-ALPHA. Budget: $45,000,000.</textarea>
+    <div class="row">
+      <button id="v3-init" class="secondary">Re-encrypt with fresh key</button>
+      <button id="v3-extract" class="danger">Extract keystream via 0x00 edit query</button>
+    </div>
+    <div class="diff-box" style="margin-top:12px">
+      <strong>Original Ciphertext (hex):</strong> <span id="v3-orig-ct"></span><br>
+      <strong style="margin-top:6px;display:inline-block">Extracted Raw Keystream (hex):</strong> <span id="v3-keystream">[Awaiting extraction]</span><br>
+      <strong style="margin-top:6px;display:inline-block">Recovered Plaintext:</strong> <span id="v3-recovered-text">[Awaiting extraction]</span>
+    </div>
+    <div class="verdict" id="v3-verdict"></div>
+  </div>
+
+  <!-- VECTOR 4 -->
+  <h2>Vector 4 — Counter rollover &amp; keystream collisions</h2>
+  <p>In CTR mode, the counter block is divided into a fixed Nonce and an integer counter field of length <code>L</code> bits. When encrypting long data streams or high-volume network packets without rekeying, the counter reaches <code>2ᴸ − 1</code> and rolls over modulo <code>2ᴸ</code>. This causes the block cipher to encrypt previously used counter blocks, generating duplicate keystreams within the exact same session or connection. NIST SP 800-38A §6.5 explicitly mandates that counter blocks must remain unique across all invocations under the same key.</p>
+
+  <div class="demo" id="demo-v4">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Counter rollover &amp; collision simulator</h3>
+    <label for="v4-bits">Counter Field Width (simulated small counter)</label>
+    <select id="v4-bits">
+      <option value="2">2-bit counter (4 states: 0, 1, 2, 3)</option>
+      <option value="3">3-bit counter (8 states: 0 .. 7)</option>
+    </select>
+    <div class="row">
+      <button id="v4-run">Simulate sequential blocks</button>
+    </div>
+    <div class="blocks" id="v4-blocks-out"></div>
+    <div class="verdict" id="v4-verdict"></div>
+  </div>
+
+  <h2>Detecting unauthenticated CTR</h2>
+  <p>Detecting CTR vulnerabilities requires both passive/black-box testing and static code analysis:</p>
+  <ul>
+    <li><strong>Black-box (Malleability &amp; Nonce Reuse Testing)</strong>:
+      <ul>
+        <li>Test for malleability: flip a single non-essential bit in ciphertext (e.g. whitespace or timestamp byte) and observe if the server accepts it without raising an authentication error.</li>
+        <li>Test for nonce reuse: send two identical plaintext payloads. If the returned ciphertexts are byte-identical across separate requests, the system is reusing nonces.</li>
+      </ul>
+    </li>
+    <li><strong>White-box (Source Code Review)</strong>:
+      <ul>
+        <li>Grep for raw CTR modes: <code>MODE_CTR</code>, <code>modes.CTR(</code>, <code>/CTR/</code>, or <code>AES/CTR/NoPadding</code>.</li>
+        <li>Check whether decryption verifies a MAC: if <code>cipher.decrypt()</code> is called without a preceding constant-time HMAC check or AEAD tag verification, the implementation is vulnerable.</li>
+        <li>Inspect counter initialization: look for hardcoded IVs/nonces (e.g. <code>iv = b'\x00' * 16</code>), missing IV increments, or static counter prefixes.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>The defensive fix — AEAD &amp; Encrypt-then-MAC</h2>
+  <p>The standard cryptographic solution is to replace raw CTR with Authenticated Encryption with Associated Data (AEAD):</p>
+  <ul>
+    <li><strong>AES-GCM (<a href="https://csrc.nist.gov/pubs/sp/800/38/d/final">NIST SP 800-38D</a>)</strong>: Combines CTR keystream encryption with Galois Message Authentication Code (GMAC) into a single atomic primitive.</li>
+    <li><strong>ChaCha20-Poly1305 (<a href="https://www.rfc-editor.org/rfc/rfc8439">RFC 8439</a>)</strong>: High-speed stream cipher paired with Poly1305 authenticator.</li>
+    <li><strong>Encrypt-then-MAC (AES-CTR + HMAC-SHA256)</strong>: If AEAD is unavailable, compute HMAC over <code>Nonce ∥ Ciphertext</code> and verify it in constant time <em>before</em> calling decryption.</li>
+  </ul>
+
+  <div class="demo" id="demo-def">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Defensive control verification (tamper rejection)</h3>
+    <p class="hint">Re-issue the token under AES-GCM or Encrypt-then-MAC and attempt to tamper 1 bit.</p>
+    <label for="def-email">Account Email</label>
+    <input type="text" id="def-email" value="alice@example.com">
+    <div class="row">
+      <button id="def-gcm">Test AES-GCM (AEAD)</button>
+      <button id="def-etm" class="secondary">Test Encrypt-then-MAC (CTR + HMAC)</button>
+    </div>
+    <div id="def-gcm-out" style="margin-top:10px"></div>
+    <div id="def-etm-out" style="margin-top:10px"></div>
+    <div class="verdict" id="def-verdict"></div>
+  </div>
+
+  <h2>Real-world evidence</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Case / Vulnerability</th><th>What happened</th><th>Vector</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>KRACK Attack, 2017</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2017-13077">CVE-2017-13077</a>)</td>
+          <td>WPA2 4-way handshake vulnerability forced Wi-Fi clients to reinstall an in-use session key and reset packet counters in AES-CCM/GCMP. The resulting nonce reuse allowed attackers to replay, decrypt, and forge network traffic (<a href="https://www.krackattacks.com/">Vanhoef &amp; Piessens, ACM CCS 2017</a>).</td>
+          <td>Vector 2 &amp; 4</td>
+        </tr>
+        <tr>
+          <td><strong>Mega.nz Flaw, 2022</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2022-37450">CVE-2022-37450</a>)</td>
+          <td>Mega used AES-128-CTR with unauthenticated file chunks and weak key derivation. Active bit-flipping malleability allowed attackers to modify stored file contents and escalate account privileges without detection (<a href="https://mega-anti-analysis.crypto.ethz.ch/">Lennox-Errand et al., ETH Zurich, 2022</a>).</td>
+          <td>Vector 1</td>
+        </tr>
+        <tr>
+          <td><strong>MS Word Document Encryption, 2005</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2005-0416">CVE-2005-0416</a>)</td>
+          <td>Microsoft Office 2002/2003 encrypted document revisions with a static key and zero IV. Re-saving or revising documents produced keystream reuse, allowing differential two-time pad recovery of document content (<a href="https://www.iacr.org/archive/fse2005/35570228/35570228.pdf">Hongjun Wu, FSE 2005</a>).</td>
+          <td>Vector 2</td>
+        </tr>
+        <tr>
+          <td><strong>Shadowsocks Stream Ciphers, 2019</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2019-14888">CVE-2019-14888</a>)</td>
+          <td>Unauthenticated stream ciphers (AES-CTR, ChaCha20) allowed active bit-flipping attacks against proxy packet headers, redirecting traffic to attacker servers and recovering plaintext. Deprecated in Shadowsocks SIP004 in favor of AEAD.</td>
+          <td>Vector 1</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Residual risk after switching to GCM</h2>
+  <p>While AES-GCM eliminates malleability and detects tampering, it introduces a severe failure mode if nonces are ever repeated: reusing a <code>(Key, Nonce)</code> pair in GCM destroys confidentiality and allows recovery of the GHASH authentication key, enabling arbitrary forgery (<a href="https://eprint.iacr.org/2016/475">Böck et al., USENIX WOOT 2016</a>).</p>
+  <p><a href="https://csrc.nist.gov/pubs/sp/800/38/d/final">NIST SP 800-38D</a> §8 requires that nonces be unique per key. For 96-bit random nonces generated via an approved RBG (§8.2.2), §8.3 places an invocation ceiling of at most 2<sup>32</sup> encryptions under any single key to bound collision probability below 2<sup>−32</sup>.</p>
+
+  <div class="callout">
+    <span class="callout-title">What to remember</span>
+    <p style="margin:0">Unauthenticated CTR mode fails because bitwise XOR encryption is completely malleable and keystreams are deterministic. Modifying ciphertext predictably modifies decrypted plaintext with zero error spread, and reusing nonces destroys confidentiality. The defensive fix is authenticated encryption (AES-GCM or Encrypt-then-MAC) with strict per-key nonce uniqueness.</p>
+  </div>
+
+  <h2>Primary references</h2>
+  <ul>
+    <li><a href="https://csrc.nist.gov/pubs/sp/800/38/a/final">NIST SP 800-38A</a> §6.5 — Recommendation for Block Cipher Modes of Operation: Methods and Techniques (CTR Mode definition and uniqueness requirement).</li>
+    <li><a href="https://csrc.nist.gov/pubs/sp/800/38/d/final">NIST SP 800-38D</a> §8 — Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) (IV uniqueness bounds and invocation limits).</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a> — Using Advanced Encryption Standard (AES) Counter Mode With IPsec Encapsulating Security Payload (ESP).</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8439">RFC 8439</a> — ChaCha20 and Poly1305 for IETF Protocols.</li>
+    <li><a href="https://cryptopals.com/">Cryptopals Crypto Challenges</a> — Set 3 (Challenges 19 &amp; 20: Break fixed-nonce CTR mode) and Set 4 (Challenges 25 &amp; 26: Random access read/write CTR and CTR bitflipping).</li>
+    <li><a href="https://www.krackattacks.com/">Vanhoef &amp; Piessens, ACM CCS 2017</a> — Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2.</li>
+    <li><a href="https://mega-anti-analysis.crypto.ethz.ch/">Lennox-Errand, Paterson, &amp; Vaudenay, ETH Zurich 2022</a> — Cryptanalysis of MEGA's Cloud Storage.</li>
+  </ul>
+</main>
+
+<footer>
+  <p><strong>Disclaimer.</strong> Provided as-is, without warranty, for educational and defensive security research. Every demonstration runs entirely in your browser against a self-contained in-page oracle — no network, no third-party system. Use these techniques only against systems you own or are explicitly authorized to test.</p>
+  <p>Verified against NIST SP 800-38A and RFC 3686 AES-CTR test vectors. Licensed under Apache-2.0. <a href="https://github.com/llody9977/ctr-mode">Repository →</a></p>
+</footer>
+
+<script type="module" src="js/ui.mjs"></script>
+</body>
+</html>

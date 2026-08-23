@@ -1,0 +1,98 @@
+schema_version: 1
+decisions:
+  - id: "CD-0001"
+    title: "Structure CTR mode vulnerabilities into three root causes and four attack vectors"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/index.html"
+        - "docs/diagrams/taxonomy.svg"
+        - "docs/diagrams/generate_diagrams.py"
+      concepts:
+        - "CTR mode failure taxonomy"
+        - "stream cipher malleability"
+        - "keystream reuse"
+    originating_feedback: "Ensure the explanation of CTR mode failure is formally grounded in cryptographic definitions rather than an arbitrary list of weaknesses."
+    decision: "Group all weaknesses under three root causes: stream-cipher malleability (bit-flipping), keystream determinism / nonce reuse, and missing authentication."
+    rationale: "CTR mode transforms a block cipher into a stream cipher via C = P XOR S. Bitwise XOR has zero error spread (malleability), fixed nonces yield identical keystreams (determinism), and the absence of a MAC allows silent modification."
+    authoritative_sources:
+      - title: "NIST SP 800-38A §6.5"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/a/final"
+        supports: "Definition of CTR mode and unique counter requirement across all invocations under a key."
+      - title: "Cryptopals Crypto Challenges"
+        url: "https://cryptopals.com/"
+        supports: "Practical demonstrations of CTR bit-flipping (Set 4 Challenge 26) and random-access edit keystream extraction (Set 4 Challenge 25)."
+    verification_methods:
+      - "test/attacks.test.mjs unit tests verifying all four attack vectors against real AES."
+    approved_outcome: "docs/index.html and docs/diagrams/taxonomy.svg depict the three root causes feeding the four attack vectors."
+    invalidation_conditions:
+      - "NIST updates SP 800-38A to alter CTR mode specification."
+      - "A new foundational class of CTR failure is identified that does not derive from malleability, keystream determinism, or missing authentication."
+    related_decisions: []
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-22"
+    last_reviewed_on: "2026-08-22"
+
+  - id: "CD-0002"
+    title: "Prescribe AEAD and Encrypt-then-MAC as the only approved cryptographic mitigations"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/index.html"
+        - "docs/js/crypto.mjs"
+        - "docs/js/attacks.mjs"
+      concepts:
+        - "AEAD"
+        - "Encrypt-then-MAC"
+        - "AES-GCM"
+    originating_feedback: "Provide unambiguous defensive guidance so developers do not attempt insecure custom patching of CTR mode."
+    decision: "Mandate AEAD (AES-GCM, ChaCha20-Poly1305) as primary defense, and Encrypt-then-MAC (AES-CTR + HMAC-SHA256 verified in constant-time before decrypt) as secondary defense."
+    rationale: "Only cryptographic authentication tags computed over ciphertext can detect bit-flipping and stream splicing before decryption occurs."
+    authoritative_sources:
+      - title: "NIST SP 800-38D"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/d/final"
+        supports: "Galois/Counter Mode (GCM) AEAD specification."
+      - title: "RFC 8439"
+        url: "https://www.rfc-editor.org/rfc/rfc8439"
+        supports: "ChaCha20-Poly1305 AEAD standard."
+    verification_methods:
+      - "Automated tests in test/attacks.test.mjs demonstrating 1-bit tamper rejection for both GCM and Encrypt-then-MAC."
+    approved_outcome: "Defensive sections in docs/index.html demonstrate tamper rejection and provide clear implementation guidelines."
+    invalidation_conditions:
+      - "Standard bodies deprecate AES-GCM or Encrypt-then-MAC due to newly discovered primitive weaknesses."
+    related_decisions: []
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-22"
+    last_reviewed_on: "2026-08-22"
+
+  - id: "CD-0003"
+    title: "Explicitly document GCM residual risks and NIST invocation limits"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/index.html"
+      concepts:
+        - "GCM nonce reuse"
+        - "NIST SP 800-38D invocation ceiling"
+    originating_feedback: "Ensure migration advice does not overclaim safety by omitting GCM's severe nonce-reuse vulnerability."
+    decision: "Include a dedicated section documenting GCM nonce uniqueness and the 2^32 invocation limit under NIST SP 800-38D §8.3."
+    rationale: "GCM nonce reuse exposes the GHASH key and completely breaks integrity. Recommending GCM without highlighting nonce governance creates residual vulnerabilities."
+    authoritative_sources:
+      - title: "NIST SP 800-38D §8"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/d/final"
+        supports: "Uniqueness requirements and 2^32 random nonce invocation limit."
+    verification_methods:
+      - "Direct verification against NIST SP 800-38D §8.3 text."
+    approved_outcome: "docs/index.html includes a section titled 'Residual risk after switching to GCM'."
+    invalidation_conditions:
+      - "NIST updates SP 800-38D invocation ceiling guidelines."
+    related_decisions: []
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-22"
+    last_reviewed_on: "2026-08-22"

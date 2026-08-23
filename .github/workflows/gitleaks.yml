@@ -1,0 +1,46 @@
+# Server-side secret scan — the third layer, behind the local pre-commit hook and
+# GitHub's own secret scanning. It is not redundant with push protection:
+#
+#   - GitHub matches *provider* patterns (registered formats: cloud keys, PATs,
+#     payment keys) and blocks them at push. It is better than gitleaks at those.
+#     It does not cover generic secrets here: private keys, high-entropy strings,
+#     .env-style assignments, any format nobody registered. That is GitHub's
+#     "non-provider patterns" feature, which requires an organization-owned repo on
+#     Team or Enterprise Cloud with GitHub Secret Protection. This repo belongs to a
+#     personal account, so that setting does not exist for it and cannot be turned
+#     on — gitleaks is the only thing covering that category, not a second opinion
+#     on it. Same for validity checks. Revisit only if this moves to an org.
+#   - Push protection is bypassable: a pusher can override it with a stated reason.
+#     This runs as a required status check on main, which a merge cannot skip.
+#   - It scans full history on every push and PR, not just the pushed delta.
+#
+# Runs the gitleaks binary directly rather than gitleaks-action: that avoids the
+# action's initial-push diff-range bug (the root commit has no parent) and needs no
+# license key. Keep it named in the branch protection required checks.
+name: Secret scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # full history so every commit is scanned
+      - name: Install gitleaks
+        run: |
+          VER=8.30.1
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+      - name: Scan
+        run: gitleaks detect --source . --redact --no-banner

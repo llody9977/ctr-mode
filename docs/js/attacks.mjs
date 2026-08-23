@@ -226,6 +226,74 @@ export async function simulateCounterRollover(keyBytes, initialCounterBlock, cou
 // 2. Encrypt-then-MAC (AES-CTR + HMAC-SHA256): Constant-time verification before decrypt
 // ===========================================================================
 
+// Run the identical forgery against all three options so the only variable is
+// what authenticates the ciphertext. Same profile, same target field, same XOR
+// delta, same byte offset — only the outcome differs.
+export async function compareTamperDetection(email, oldRole = "user", newRole = "root") {
+  if (oldRole.length !== newRole.length) {
+    throw new Error("target roles must be equal length — CTR bit-flipping cannot change length");
+  }
+  const profile = `email=${String(email).replace(/[&=;]/g, "_")}&uid=1000&role=${oldRole}`;
+  const offset = profile.indexOf(`role=${oldRole}`) + "role=".length;
+  const delta = xorBytes(latin1Encode(oldRole), latin1Encode(newRole));
+  const applyDelta = (bytes, at) => {
+    const out = new Uint8Array(bytes);
+    for (let i = 0; i < delta.length; i++) out[at + i] ^= delta[i];
+    return out;
+  };
+
+  // 1 — Raw AES-CTR. Nothing authenticates the ciphertext.
+  const ctrKey = randomKey();
+  const ctrCounter = makeCounterBlock();
+  const { ciphertext: ctrCt } = await aesCtrEncrypt(ctrKey, latin1Encode(profile), ctrCounter);
+  const ctrTampered = applyDelta(ctrCt, offset);
+  const ctrPlaintext = latin1Decode(await aesCtrDecrypt(ctrKey, ctrTampered, ctrCounter));
+  const ctr = {
+    scheme: "AES-CTR alone",
+    tamperOffset: offset,
+    ciphertextHex: toHex(ctrCt),
+    tamperedHex: toHex(ctrTampered),
+    detected: false,                       // no tag exists to fail
+    plaintextReturned: ctrPlaintext,
+    roleAccepted: new URLSearchParams(ctrPlaintext).get("role"),
+  };
+
+  // 2 — Encrypt-then-MAC. Payload is counter ‖ ciphertext ‖ tag.
+  const etmEncKey = randomKey(16);
+  const etmMacKey = randomKey(32);
+  const { payload } = await encryptThenMacEncrypt(etmEncKey, etmMacKey, latin1Encode(profile));
+  const etmTampered = applyDelta(payload, BLOCK_SIZE + offset);
+  const etm = { scheme: "AES-CTR + HMAC-SHA256", tamperOffset: BLOCK_SIZE + offset, payloadHex: toHex(payload), tamperedHex: toHex(etmTampered) };
+  try {
+    etm.plaintextReturned = latin1Decode(await encryptThenMacDecrypt(etmEncKey, etmMacKey, etmTampered));
+    etm.detected = false;
+    etm.roleAccepted = new URLSearchParams(etm.plaintextReturned).get("role");
+  } catch (err) {
+    etm.detected = true;                   // HMAC verification failed before decryption
+    etm.plaintextReturned = null;
+    etm.roleAccepted = null;
+    etm.error = err.message;
+  }
+
+  // 3 — AES-GCM. Web Crypto returns ciphertext ‖ tag, so the offset is unchanged.
+  const gcmKey = randomKey(32);
+  const { nonce, ciphertext: gcmCt } = await aesGcmEncrypt(gcmKey, latin1Encode(profile));
+  const gcmTampered = applyDelta(gcmCt, offset);
+  const gcm = { scheme: "AES-GCM", tamperOffset: offset, nonceHex: toHex(nonce), ciphertextHex: toHex(gcmCt), tamperedHex: toHex(gcmTampered) };
+  try {
+    gcm.plaintextReturned = latin1Decode(await aesGcmDecrypt(gcmKey, nonce, gcmTampered));
+    gcm.detected = false;
+    gcm.roleAccepted = new URLSearchParams(gcm.plaintextReturned).get("role");
+  } catch (err) {
+    gcm.detected = true;                   // GHASH tag check failed before plaintext was released
+    gcm.plaintextReturned = null;
+    gcm.roleAccepted = null;
+    gcm.error = err.message || "authentication tag verification failed";
+  }
+
+  return { profile, offset, deltaHex: toHex(delta), oldRole, newRole, results: [ctr, etm, gcm] };
+}
+
 export async function gcmTokenRoundtrip(email, key = randomKey()) {
   const profile = `email=${String(email).replace(/[&=;]/g, "_")}&uid=1000&role=user`;
   const { nonce, ciphertext } = await aesGcmEncrypt(key, latin1Encode(profile));

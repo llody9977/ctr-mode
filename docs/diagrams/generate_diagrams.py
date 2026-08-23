@@ -123,15 +123,15 @@ W = 900
 def panel(x, y, w, h):
     return f'<rect class="panel" x="{x}" y="{y}" width="{w}" height="{h}" rx="10" stroke-width="1.5"/>'
 
-# ---------------- Diagram 1: Comparison of CTR, CBC, and GCM ----------------
+# ---------------- Diagram 1: CTR alone vs CTR+HMAC vs GCM ----------------
 def d1():
     b = []
-    b.append(text(W / 2, 80, "How block ciphers transform into stream or authenticated modes", size=13, fill=MUTED))
+    b.append(text(W / 2, 80, "The reader's three options, on one axis: where does the authentication tag come from?", size=13, fill=MUTED))
 
     def moderow(y0, name, mechanism, security_prop, tagcolor, tagtext):
         o = [panel(24, y0, W - 48, 100)]
-        o.append(f'<rect x="44" y="{y0 + 16}" width="130" height="28" rx="14" fill="{NAVY}"/>')
-        o.append(text(44 + 65, y0 + 34, name, size=12.5, fill="#fff", weight="700"))
+        o.append(f'<rect x="44" y="{y0 + 16}" width="180" height="28" rx="14" fill="{NAVY}"/>')
+        o.append(text(44 + 90, y0 + 34, name, size=12.5, fill="#fff", weight="700"))
         o.append(text(44, y0 + 64, mechanism, size=11.5, fill=MUTED, anchor="start", lh=15))
         ow, oh = 220, 52
         ox = W - 48 - ow - 20
@@ -140,27 +140,27 @@ def d1():
         return "".join(o)
 
     b.append(moderow(
-        100, "AES-CTR",
-        "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.\nNo integrity — tampering decrypts without error.",
-        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused Nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
+        100, "AES-CTR alone",
+        "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.\nNothing authenticates C, so tampering decrypts cleanly.",
+        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
         RED, "⚠ Confidentiality only — needs a MAC"
     ))
     b.append(moderow(
-        212, "AES-CBC",
-        "XORs each plaintext block with previous ciphertext.\nFirst block XORs random IV. Requires padding.\nSpread is bounded to 2 blocks. No AEAD tag (padding-oracle risk).",
-        "Tamper randomizes that block; the\nsame bits flip in the next block",
-        AMBER, "⚠ Unauthenticated (needs MAC)"
+        212, "AES-CTR + HMAC",
+        "The same keystream encryption, then HMAC-SHA256 over\n(counter ‖ ciphertext) under a second, independent key.\nVerify the tag first; decrypt only if it passes.",
+        "Tamper and truncation rejected\nbefore any plaintext is returned",
+        GREEN, "✔ Authenticated — you compose it"
     ))
     b.append(moderow(
         324, "AES-GCM",
-        "CTR keystream encryption + a GHASH-based tag\ncomputed over ciphertext and associated data.\nSecurity holds only while nonces never repeat.",
-        "AEAD: 1-bit tamper rejects ciphertext\nbefore decryption completes",
-        GREEN, "✔ Authenticated (requires unique nonces)"
+        "The same counter-mode keystream, plus a GHASH tag over\nciphertext and associated data, as a single primitive.\nSecurity holds only while nonces never repeat.",
+        "1-bit tamper rejects ciphertext\nbefore decryption completes",
+        GREEN, "✔ Authenticated — built in"
     ))
-    b.append(text(W / 2, 440, "Scope: educational comparison of mode properties. CBC spread per NIST SP 800-38A App. D; GCM nonce limits per SP 800-38D §8.",
+    b.append(text(W / 2, 440, "Scope: educational comparison of counter-mode options. GCM nonce limits per NIST SP 800-38D §8; Encrypt-then-MAC ordering per Bellare & Namprempre.",
                   size=10.5, fill=MUTED))
-    return svg(W, 456, "AES-CTR vs AES-CBC vs AES-GCM", "".join(b),
-               subtitle="CTR turns a block cipher into a stream cipher — but requires external authentication")
+    return svg(W, 456, "AES-CTR, AES-CTR + HMAC, and AES-GCM", "".join(b),
+               subtitle="all three encrypt with the same counter-mode keystream — only the authentication differs")
 
 # ---------------- Diagram 2: Taxonomy of Root Causes & Vectors ----------------
 def d2():
@@ -320,7 +320,7 @@ def d6():
     return svg(W, 340, "Vector 4 — Counter Reuse Regenerates Keystream", "".join(b),
                subtitle="a counter field too small for the traffic repeats counter blocks, and repeated counter blocks repeat keystream")
 
-DIAGRAMS = [("modes-ctr-gcm-cbc", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4), ("vector3-edit-oracle", d5), ("vector4-counter-reuse", d6)]
+DIAGRAMS = [("modes-ctr-etm-gcm", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4), ("vector3-edit-oracle", d5), ("vector4-counter-reuse", d6)]
 
 # Guarded so the helpers can be imported (e.g. to unit-test the layout guards)
 # without the import writing files as a side effect.

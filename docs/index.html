@@ -28,7 +28,8 @@
   <p>Unlike ECB or CBC, CTR mode requires no padding: the keystream is truncated to the exact byte length of the plaintext. While this enables high performance, random access, and parallel processing, it inherits the fundamental vulnerabilities of synchronous stream ciphers when used without an authentication tag.</p>
 
   <figure>
-    <img src="diagrams/modes-ctr-gcm-cbc.svg" alt="Schematic comparing AES-CTR, AES-CBC, and AES-GCM: CTR generates keystream via counter blocks and XORs plaintext directly; CBC chains ciphertext into subsequent plaintext blocks; GCM combines CTR keystream encryption with a GHASH-based authentication tag, which rejects tampered ciphertext provided nonces are never reused.">
+    <img src="diagrams/modes-ctr-etm-gcm.svg" alt="Comparison of the three counter-mode options on one axis. AES-CTR alone: keystream encryption with nothing authenticating the ciphertext, so it is malleable and a reused nonce cancels the keystream — confidentiality only. AES-CTR plus HMAC-SHA256 over the counter block and ciphertext under a second independent key, verified before decrypting: tampering and truncation are rejected before any plaintext is returned — authentication you compose yourself. AES-GCM: the same counter-mode keystream plus a GHASH tag over ciphertext and associated data as one primitive, rejecting a 1-bit tamper before decryption completes, provided nonces never repeat.">
+    <figcaption>All three encrypt with the same counter-mode keystream. What separates them is where the authentication tag comes from — nowhere, composed by you, or built into the primitive.</figcaption>
   </figure>
 
   <h2>What CTR guarantees — and what it does not</h2>
@@ -274,16 +275,15 @@ async function openEtM(encKey, macKey, payload) {
 
   <div class="demo" id="demo-def">
     <div class="demo-head">Live in your browser</div>
-    <h3>Defensive control verification (tamper rejection)</h3>
-    <p class="hint">Re-issue the token under AES-GCM or Encrypt-then-MAC and attempt to tamper 1 bit.</p>
+    <h3>The same forgery against all three options</h3>
+    <p class="hint">One account, one target field, one XOR delta. The attacker does the identical thing in each case — flipping <code>role=user</code> to <code>role=root</code> in the ciphertext. Only what authenticates the ciphertext changes.</p>
     <label for="def-email">Account Email</label>
     <input type="text" id="def-email" value="alice@example.com">
     <div class="row">
-      <button id="def-gcm">Test AES-GCM (AEAD)</button>
-      <button id="def-etm" class="secondary">Test Encrypt-then-MAC (CTR + HMAC)</button>
+      <button id="def-run" class="danger">Run the same tamper against all three</button>
     </div>
-    <div id="def-gcm-out" style="margin-top:10px"></div>
-    <div id="def-etm-out" style="margin-top:10px"></div>
+    <div id="def-attack" style="margin-top:14px"></div>
+    <div id="def-results"></div>
     <div class="verdict" id="def-verdict"></div>
   </div>
 

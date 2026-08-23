@@ -6,7 +6,7 @@ import {
   twoTimePadXor, knownPlaintextRecover, cribDrag,
   DocumentEditorService, recoverPlaintextViaEditOracle,
   simulateCounterRollover,
-  gcmTokenRoundtrip, encryptThenMacTokenRoundtrip,
+  compareTamperDetection,
 } from "./attacks.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -191,36 +191,68 @@ async function runCounterRollover() {
 }
 
 // ===========================================================================
-// Defensive Controls: AES-GCM & Encrypt-then-MAC
+// Defensive Controls — the same forgery against all three options
 // ===========================================================================
-async function runGcmDefense() {
-  const email = $("def-email").value.trim() || "alice@example.com";
-  const { tamperRejected, decryptedProfile } = await gcmTokenRoundtrip(email);
 
-  $("def-gcm-out").innerHTML =
-    `<div class="diff-box">` +
-    `Clean decryption: <code>${esc(decryptedProfile)}</code><br>` +
-    `Tamper result: <strong style="color:var(--green)">${tamperRejected ? "REJECTED (Authentication tag validation failed)" : "ACCEPTED"}</strong>` +
-    `</div>`;
-
-  verdict($("def-verdict"), "good",
-    `<strong>AEAD Defense Verified:</strong> AES-GCM verified the 128-bit GHASH-based authentication tag before returning any plaintext. Flipping 1 bit caused decryption to abort immediately, stopping the privilege escalation attack.`
-  );
+// Highlight the bytes the attacker flipped, at their real position in the hex.
+function markTamper(hex, byteOffset, byteLen) {
+  const a = byteOffset * 2;
+  const b = a + byteLen * 2;
+  return esc(hex.slice(0, a)) + `<span class="flip">${esc(hex.slice(a, b))}</span>` + esc(hex.slice(b));
 }
 
-async function runEtmDefense() {
-  const email = $("def-email").value.trim() || "alice@example.com";
-  const { tamperRejected, decryptedProfile } = await encryptThenMacTokenRoundtrip(email);
+function schemeCard(index, r, deltaLen) {
+  const blocked = r.detected;
+  const badge = blocked
+    ? `<span class="badge pass">Tampering detected</span>`
+    : `<span class="badge fail">Forgery accepted</span>`;
+  const before = r.payloadHex ?? r.ciphertextHex;
+  const label = r.payloadHex ? "Payload (counter ‖ ciphertext ‖ HMAC)" : "Ciphertext";
 
-  $("def-etm-out").innerHTML =
+  const outcome = blocked
+    ? `<strong>Server returned:</strong> <span class="clean">nothing — ${esc(r.error)}</span><br>` +
+      `<span class="muted">The tag was checked before decryption, so no plaintext was ever produced.</span>`
+    : `<strong>Server decrypted:</strong> <code>${esc(r.plaintextReturned)}</code><br>` +
+      `<strong style="margin-top:6px;display:inline-block">Role accepted:</strong> <span class="flip">${esc(r.roleAccepted)}</span>`;
+
+  return `<div class="scheme ${blocked ? "pass" : "fail"}">` +
+    `<div class="scheme-head"><span class="scheme-name">${index} · ${esc(r.scheme)}</span>${badge}</div>` +
     `<div class="diff-box">` +
-    `Clean decryption: <code>${esc(decryptedProfile)}</code><br>` +
-    `Tamper result: <strong style="color:var(--green)">${tamperRejected ? "REJECTED (HMAC verification failed)" : "ACCEPTED"}</strong>` +
-    `</div>`;
+      `<strong>${label} after tampering:</strong><br>` +
+      `<code class="hexline">${markTamper(r.tamperedHex, r.tamperOffset, deltaLen)}</code><br>` +
+      `<span class="muted">unchanged original: <code class="hexline">${esc(before.slice(0, 48))}…</code></span><br>` +
+      `<div style="margin-top:8px">${outcome}</div>` +
+    `</div></div>`;
+}
 
-  verdict($("def-verdict"), "good",
-    `<strong>Encrypt-then-MAC Verified:</strong> HMAC-SHA256 authenticated the counter and ciphertext. Any tampering failed constant-time MAC verification before AES-CTR decryption was even attempted.`
-  );
+async function runDefenceComparison() {
+  const email = $("def-email").value.trim() || "alice@example.com";
+  const btn = $("def-run");
+  btn.disabled = true;
+  try {
+    const cmp = await compareTamperDetection(email);
+    const deltaLen = cmp.deltaHex.length / 2;
+
+    $("def-attack").innerHTML =
+      `<div class="diff-box">` +
+      `<strong>Issued plaintext:</strong> <code>${esc(cmp.profile)}</code><br>` +
+      `<strong style="margin-top:6px;display:inline-block">Attacker's move (identical in all three):</strong> ` +
+      `XOR <code>${esc(cmp.deltaHex)}</code> into the ciphertext at byte ${cmp.offset}, ` +
+      `turning <code>role=${esc(cmp.oldRole)}</code> into <code>role=${esc(cmp.newRole)}</code>.` +
+      `</div>`;
+
+    $("def-results").innerHTML = cmp.results.map((r, i) => schemeCard(i + 1, r, deltaLen)).join("");
+
+    const detected = cmp.results.filter((r) => r.detected).length;
+    verdict($("def-verdict"), detected === 2 ? "good" : "bad",
+      `<strong>Same attack, three outcomes.</strong> Raw AES-CTR had no tag to check, so the forged ` +
+      `<code>role=${esc(cmp.newRole)}</code> was decrypted and accepted. Both AES-CTR + HMAC and AES-GCM ` +
+      `rejected the identical modification before returning any plaintext. The keystream encryption is the ` +
+      `same in all three — only the authentication differs.`
+    );
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ===========================================================================
@@ -245,12 +277,12 @@ addEventListener("DOMContentLoaded", () => {
   $("v4-run").addEventListener("click", runCounterRollover);
 
   // Defensive
-  $("def-gcm").addEventListener("click", runGcmDefense);
-  $("def-etm").addEventListener("click", runEtmDefense);
+  $("def-run").addEventListener("click", runDefenceComparison);
 
   // Initial runs
   issueNormalToken();
   runTwoTimePadEncrypt();
   initDocOracle();
   runCounterRollover();
+  runDefenceComparison();
 });

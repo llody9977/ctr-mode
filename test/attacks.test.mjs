@@ -15,7 +15,7 @@ import {
   twoTimePadXor, knownPlaintextRecover, cribDrag,
   DocumentEditorService, recoverPlaintextViaEditOracle,
   simulateCounterRollover,
-  gcmTokenRoundtrip, encryptThenMacTokenRoundtrip,
+  gcmTokenRoundtrip, encryptThenMacTokenRoundtrip, compareTamperDetection,
 } from "../docs/js/attacks.mjs";
 
 test("AES-128-CTR encrypt matches NIST SP 800-38A F.5.1 test vectors", async () => {
@@ -198,4 +198,42 @@ test("Defensive — Encrypt-then-MAC (AES-CTR + HMAC) rejects 1-bit tampering", 
   const { tamperRejected, decryptedProfile } = await encryptThenMacTokenRoundtrip("carol@secure.io");
   assert.equal(tamperRejected, true);
   assert.match(decryptedProfile, /role=user/);
+});
+
+test("Side-by-side — the identical forgery is undetected under CTR and rejected by both defenses", async () => {
+  const { results, deltaHex, oldRole, newRole, profile, offset } = await compareTamperDetection("dave@example.com");
+  const [ctr, etm, gcm] = results;
+
+  // The comparison is only honest if all three received the same attack.
+  assert.equal(oldRole, "user");
+  assert.equal(newRole, "root");
+  assert.equal(profile.slice(offset, offset + 4), "user", "offset must point at the role value");
+  assert.equal(deltaHex, "071c0a06", '"user" XOR "root", byte for byte');
+
+  // 1 — raw CTR silently accepts the forgery and hands back the forged plaintext.
+  assert.equal(ctr.detected, false, "raw CTR has no tag that could fail");
+  assert.equal(ctr.roleAccepted, "root", "the forged role is accepted");
+  assert.match(ctr.plaintextReturned, /role=root/);
+  assert.notEqual(ctr.ciphertextHex, ctr.tamperedHex);
+
+  // 2 and 3 — both defenses reject, and critically return NO plaintext at all.
+  for (const scheme of [etm, gcm]) {
+    assert.equal(scheme.detected, true, `${scheme.scheme} must detect the tamper`);
+    assert.equal(scheme.plaintextReturned, null, `${scheme.scheme} must not return plaintext`);
+    assert.equal(scheme.roleAccepted, null, `${scheme.scheme} must not yield a role`);
+  }
+});
+
+test("Side-by-side — untampered payloads still decrypt correctly under both defenses", async () => {
+  // Guards against a defense that "detects" everything, which would pass the test above.
+  const { tamperRejected: gcmRejected, decryptedProfile: gcmClean } = await gcmTokenRoundtrip("erin@example.com");
+  const { tamperRejected: etmRejected, decryptedProfile: etmClean } = await encryptThenMacTokenRoundtrip("erin@example.com");
+  assert.equal(gcmRejected, true);
+  assert.equal(etmRejected, true);
+  assert.match(gcmClean, /role=user/);
+  assert.match(etmClean, /role=user/);
+});
+
+test("Side-by-side — equal-length role targets are enforced", async () => {
+  await assert.rejects(() => compareTamperDetection("f@example.com", "user", "administrator"), /equal length/);
 });

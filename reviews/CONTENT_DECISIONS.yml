@@ -179,7 +179,7 @@ decisions:
         - "docs/js/ui.mjs"
         - "docs/js/attacks.mjs"
         - "docs/diagrams/generate_diagrams.py"
-        - "docs/diagrams/modes-ctr-gcm-cbc.svg"
+        - "docs/diagrams/modes-ctr-etm-gcm.svg"
       concepts:
         - "GMAC versus GHASH"
         - "CBC error propagation"
@@ -201,6 +201,7 @@ decisions:
     related_decisions:
       - "CD-0002"
       - "CD-0003"
+      - "CD-0009"
     supersedes: []
     superseded_by: null
     originated_on: "2026-08-23"
@@ -243,7 +244,7 @@ decisions:
         - "README.md"
         - "DISCLAIMER.md"
         - "docs/diagrams/generate_diagrams.py"
-        - "docs/diagrams/modes-ctr-gcm-cbc.svg"
+        - "docs/diagrams/modes-ctr-etm-gcm.svg"
       concepts:
         - "CTR standing under NIST"
         - "normative strength of mitigation guidance"
@@ -278,6 +279,44 @@ decisions:
       - "CD-0006"
     supersedes:
       - "CD-0002"
+    superseded_by: null
+    originated_on: "2026-08-23"
+    last_reviewed_on: "2026-08-23"
+
+  - id: "CD-0009"
+    title: "Compare CTR only against the options the reader can actually choose"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/index.html"
+        - "docs/diagrams/modes-ctr-etm-gcm.svg"
+        - "docs/diagrams/generate_diagrams.py"
+      concepts:
+        - "mode comparison axis"
+        - "AES-CBC in scope"
+        - "padding oracle"
+    originating_feedback: "Reader feedback on 2026-08-23: why does the comparison include CBC when the subject is CTR? Would CTR versus GCM and/or CTR plus authentication not make more sense?"
+    decision: "Compare AES-CTR alone, AES-CTR + HMAC (Encrypt-then-MAC), and AES-GCM. Drop AES-CBC from the comparison. The figure is renamed modes-ctr-etm-gcm.svg to match what it depicts."
+    rationale: "The page asks the reader to make exactly one decision — how to authenticate counter-mode encryption — and offers exactly two answers, an AEAD or a composed MAC. CBC is neither, so its row could not be selected and did not inform the decision. It also broke the comparison axis: CTR against CBC contrasts two unauthenticated confidentiality modes on tamper behaviour, while GCM sits on the different axis of authenticated versus not. Worse, the CBC row asserted padding-oracle risk, a threat the page raises nowhere else and never develops, leaving a dangling claim. The replacement axis carries the page's thesis directly: all three rows run the same counter-mode keystream, and only the source of the authentication tag differs — which is also why 'replace CTR with GCM' is the wrong mental model. CBC remains mentioned in passing where it is genuinely relevant: as one of SP 800-38A's five approved modes, and for the padding contrast in the mechanism section."
+    authoritative_sources:
+      - title: "NIST SP 800-38D"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/d/final"
+        supports: "GCM confidentiality is a variation of Counter mode, which is what makes the three-row axis coherent."
+      - title: "Bellare & Namprempre, IACR ePrint 2000/025"
+        url: "https://eprint.iacr.org/2000/025"
+        supports: "Encrypt-then-MAC as the composed option shown in the middle row."
+    verification_methods:
+      - "Confirmed by inspection that CBC had no substantive treatment outside the figure, and that padding-oracle risk appeared nowhere else in the repository."
+      - "Figure regenerated and loaded standalone at its own URL as a detached artifact."
+    approved_outcome: "docs/diagrams/modes-ctr-etm-gcm.svg compares AES-CTR alone, AES-CTR + HMAC, and AES-GCM, with a caption naming the shared keystream and the differing authentication source. No CBC row remains, and no padding-oracle claim remains."
+    invalidation_conditions:
+      - "The page's scope widens to cover choosing between confidentiality modes rather than authenticating counter mode."
+      - "Padding-oracle behaviour is developed as its own topic, giving a CBC row something to attach to."
+    related_decisions:
+      - "CD-0006"
+      - "CD-0008"
+    supersedes: []
     superseded_by: null
     originated_on: "2026-08-23"
     last_reviewed_on: "2026-08-23"

@@ -204,7 +204,7 @@ async function runGcmDefense() {
     `</div>`;
 
   verdict($("def-verdict"), "good",
-    `<strong>AEAD Defense Verified:</strong> AES-GCM verified the 128-bit GMAC authentication tag before returning any plaintext. Flipping 1 bit caused decryption to abort immediately, stopping the privilege escalation attack.`
+    `<strong>AEAD Defense Verified:</strong> AES-GCM verified the 128-bit GHASH-based authentication tag before returning any plaintext. Flipping 1 bit caused decryption to abort immediately, stopping the privilege escalation attack.`
   );
 }
 

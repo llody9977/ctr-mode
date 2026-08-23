@@ -126,8 +126,9 @@ export function cribDrag(xorStream, cribString, offset) {
 // Cryptopals Set 4 Challenge 25.
 //
 // Systems exposing random access seek/edit APIs (e.g. disk encryption blocks,
-// document editor endpoints) allow an attacker to overwrite ciphertext with 0x00.
-// Since 0x00 XOR S = S, the resulting ciphertext IS the keystream S!
+// document editor endpoints) let an attacker ask for the stored content to be
+// replaced with all-zero PLAINTEXT. The server re-encrypts under the same key and
+// counter, so the ciphertext it returns is 0x00 XOR S = S — the keystream itself.
 // ===========================================================================
 
 export class DocumentEditorService {
@@ -163,7 +164,7 @@ export class DocumentEditorService {
 // Single-pass full plaintext recovery via edit oracle
 export async function recoverPlaintextViaEditOracle(editorService) {
   const originalCt = editorService.getCiphertext();
-  // Request edit with all-zeros: C_zero = 0x00 XOR S = S
+  // Submit all-zero plaintext; the re-encrypted result is 0x00 XOR S = S
   const zeroBytes = new Uint8Array(originalCt.length);
   const rawKeystream = await editorService.edit(originalCt, 0, zeroBytes);
   // Original plaintext is C XOR S
@@ -221,7 +222,7 @@ export async function simulateCounterRollover(keyBytes, initialCounterBlock, cou
 
 // ===========================================================================
 // Defensive Controls
-// 1. AES-GCM (AEAD): Nonce + GMAC Authentication Tag
+// 1. AES-GCM (AEAD): Nonce + GHASH-based authentication tag
 // 2. Encrypt-then-MAC (AES-CTR + HMAC-SHA256): Constant-time verification before decrypt
 // ===========================================================================
 

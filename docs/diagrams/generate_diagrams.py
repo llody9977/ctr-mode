@@ -56,7 +56,19 @@ def text(x, y, s, size=13, fill=INK, anchor="middle", weight="400", mono=False, 
     return "".join(parts)
 
 def box(x, y, w, h, label, fill=NEU_F, stroke=NEU_S, tc=INK, mono=False, rx=9, size=13, weight="600", lh=15, sw=1.5):
-    n = len(label.split("\n"))
+    lines = label.split("\n")
+    n = len(lines)
+    # A rect does not clip its text: an over-long line or an extra line silently
+    # renders outside the box and over whatever sits next to it, which no XML or
+    # link check can see. Fail generation instead of shipping an unreadable figure.
+    # The mono face runs wider per character than the sans face, so measure with
+    # the right ratio — otherwise the guard under-protects exactly the mono boxes
+    # most likely to overflow.
+    widest = max((len(ln) for ln in lines), default=0) * size * (0.6 if mono else 0.5)
+    if widest > w - 4:
+        raise ValueError(f"box text {label.splitlines()[0]!r} needs ~{widest:.0f}px, box is {w}px")
+    if n * lh > h:
+        raise ValueError(f"box text {label.splitlines()[0]!r} needs {n} lines ({n * lh}px), box is {h}px")
     cx, cy = x + w / 2, y + h / 2
     first = cy - (n - 1) * lh / 2 + size / 3
     if fill == NEU_F and stroke == NEU_S:
@@ -75,8 +87,23 @@ def path(d, dashed=False, color=ARROW, sw=2):
     st = 'class="arw"' if color == ARROW else f'stroke="{color}"'
     return f'<path d="{d}" fill="none" {st} stroke-width="{sw}"{da} marker-end="url(#arw)"/>'
 
-def alabel(x, y, s, size=11, fill=MUTED):
-    w = len(s) * size * 0.56 + 10
+def alabel(x, y, s, size=11, fill=MUTED, max_width=None):
+    """Connector label on an opaque card.
+
+    `max_width` is the gap the label has to live in. Without it a long string
+    silently renders wider than the space between its neighbours and is then
+    overpainted by whatever is drawn next, which is invisible to every
+    structural check — so shrink the type until it actually fits.
+    """
+    def width(sz):
+        return len(s) * sz * 0.56 + 10
+    w = width(size)
+    if max_width is not None:
+        while w > max_width and size > 8:
+            size -= 0.5
+            w = width(size)
+        if w > max_width:
+            raise ValueError(f"alabel {s!r} needs {w:.1f}px but only {max_width}px is free")
     return (f'<rect class="card" x="{x - w / 2}" y="{y - size + 2}" width="{w}" height="{size + 6}" rx="4" opacity="0.95"/>'
             + text(x, y + 3, s, size=size, fill=fill, weight="500"))
 
@@ -106,31 +133,33 @@ def d1():
         o.append(f'<rect x="44" y="{y0 + 16}" width="130" height="28" rx="14" fill="{NAVY}"/>')
         o.append(text(44 + 65, y0 + 34, name, size=12.5, fill="#fff", weight="700"))
         o.append(text(44, y0 + 64, mechanism, size=11.5, fill=MUTED, anchor="start", lh=15))
-        ow, oh = 220, 68
+        ow, oh = 220, 52
         ox = W - 48 - ow - 20
         o.append(box(ox, y0 + 16, ow, oh, security_prop, fill=NEU_F, stroke=tagcolor, tc=INK, size=11.5, lh=14))
-        o.append(text(ox + ow / 2, y0 + 74, tagtext, size=11, fill=tagcolor, weight="700"))
+        o.append(text(ox + ow / 2, y0 + 84, tagtext, size=11, fill=tagcolor, weight="700"))
         return "".join(o)
 
     b.append(moderow(
         100, "AES-CTR",
-        "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.",
-        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused Nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂\n",
-        RED, "⚠ Unauthenticated: Vulnerable"
+        "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.\nNo integrity — tampering decrypts without error.",
+        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused Nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
+        RED, "⚠ Confidentiality only — needs a MAC"
     ))
     b.append(moderow(
         212, "AES-CBC",
-        "XORs each plaintext block with previous ciphertext.\nFirst block XORs random IV. Requires padding.",
-        "Cascading error propagation;\nNo AEAD tag (Padding Oracle risk)\n",
+        "XORs each plaintext block with previous ciphertext.\nFirst block XORs random IV. Requires padding.\nSpread is bounded to 2 blocks. No AEAD tag (padding-oracle risk).",
+        "Tamper randomizes that block; the\nsame bits flip in the next block",
         AMBER, "⚠ Unauthenticated (needs MAC)"
     ))
     b.append(moderow(
         324, "AES-GCM",
-        "CTR keystream encryption + GMAC authentication tag\ncomputed over ciphertext and associated data.",
-        "AEAD: 1-bit tamper rejects ciphertext\nbefore decryption completes\n",
-        GREEN, "✔ Authenticated: IND-CCA2 Secure"
+        "CTR keystream encryption + a GHASH-based tag\ncomputed over ciphertext and associated data.\nSecurity holds only while nonces never repeat.",
+        "AEAD: 1-bit tamper rejects ciphertext\nbefore decryption completes",
+        GREEN, "✔ Authenticated (requires unique nonces)"
     ))
-    return svg(W, 446, "AES-CTR vs AES-CBC vs AES-GCM", "".join(b),
+    b.append(text(W / 2, 440, "Scope: educational comparison of mode properties. CBC spread per NIST SP 800-38A App. D; GCM nonce limits per SP 800-38D §8.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 456, "AES-CTR vs AES-CBC vs AES-GCM", "".join(b),
                subtitle="CTR turns a block cipher into a stream cipher — but requires external authentication")
 
 # ---------------- Diagram 2: Taxonomy of Root Causes & Vectors ----------------
@@ -170,22 +199,24 @@ def d2():
     r2c = r2[0] + r2[2] / 2
     r3c = r3[0] + r3[2] / 2
 
-    # Vector 1 connects to R1 & R3
+    # Vector 1 connects to R1 (solid, primary) and R3 (dashed, contributing)
     b.append(arrow(r1c, r1[1] + r1[3], vs[0][0] + vs[0][1] / 2, vy - 2))
     b.append(path(f"M {r3c} {r3[1] + r3[3]} C {r3c} {r3[1] + r3[3] + 25}, {vs[0][0] + vs[0][1] / 2 + 50} {vy - 25}, {vs[0][0] + vs[0][1] / 2 + 20} {vy - 2}", dashed=True))
 
     # Vector 2 connects to R2
     b.append(arrow(r2c, r2[1] + r2[3], vs[1][0] + vs[1][1] / 2, vy - 2))
 
-    # Vector 3 connects to R1, R2, R3
+    # Vector 3 connects to R2 (the edit oracle re-encrypts under the same counter)
     b.append(arrow(r2c, r2[1] + r2[3], vs[2][0] + vs[2][1] / 2, vy - 2))
 
     # Vector 4 connects to R2
     b.append(arrow(r2c, r2[1] + r2[3], vs[3][0] + vs[3][1] / 2, vy - 2))
 
-    b.append(text(W / 2, 380, "Scope: educational analysis of CTR mode failure modes; demonstrations execute locally in the browser/Node test suite.",
+    b.append(text(W / 2, 366, "Solid arrow = primary root cause   ·   Dashed arrow = contributing root cause",
+                  size=10.5, fill=MUTED, weight="500"))
+    b.append(text(W / 2, 386, "Scope: educational analysis of CTR mode failure modes; demonstrations execute locally in the browser/Node test suite.",
                   size=10.5, fill=MUTED))
-    return svg(W, 396, "Three Root Causes and Four Attack Vectors", "".join(b),
+    return svg(W, 402, "Three Root Causes and Four Attack Vectors", "".join(b),
                subtitle="every CTR mode vulnerability traces back to malleability, keystream determinism, or missing authentication")
 
 # ---------------- Diagram 3: Vector 1 Precision Bit-Flipping ----------------
@@ -201,15 +232,16 @@ def d3():
     b.append(box(590, 110, 250, 36, "C = [ 4a 1b 89 ... 7c 32 ]", fill=NEU_F, stroke=NEU_S, tc=INK, mono=True, size=12))
 
     b.append(text(50, 180, "Step 2: Attacker flips target bits in ciphertext (Δ = \"user\" ⊕ \"root\")", size=12.5, fill=INK, weight="700", anchor="start"))
-    b.append(box(50, 194, 250, 36, "C_tampered = C ⊕ Δ", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=12))
-    b.append(arrow(310, 212, 380, 212, color=RED))
-    b.append(alabel(345, 204, "zero error propagation", fill=RED))
-    b.append(box(390, 194, 450, 36, "Only the 4 target bytes are modified; surrounding bytes remain valid", fill="#fee2e2", stroke=RED, tc="#991b1b", size=11.5))
+    b.append(box(50, 194, 230, 36, "C_tampered = C ⊕ Δ", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=12))
+    b.append(arrow(290, 212, 405, 212, color=RED))
+    # 280..415 is the clear span between the two boxes; the label must stay inside it.
+    b.append(alabel(340, 204, "zero error spread", fill=RED, max_width=126))
+    b.append(box(415, 194, 425, 36, "Only the 4 target bytes are modified; surrounding bytes remain valid", fill="#fee2e2", stroke=RED, tc="#991b1b", size=11.5))
 
     b.append(text(50, 264, "Step 3: Server decrypts tampered ciphertext without verifying MAC", size=12.5, fill=INK, weight="700", anchor="start"))
     b.append(box(50, 278, 250, 36, "P' = C_tampered ⊕ S", fill=NEU_F, stroke=NEU_S, tc=INK, mono=True, size=12))
     b.append(text(320, 300, "=", size=18, fill=MUTED, weight="700"))
-    b.append(box(350, 278, 490, 36, "P' = \"email=alice&role=root\"   (Privilege Escalation Verified!)", fill="#dcfce7", stroke=GREEN, tc="#15803d", mono=True, size=12, weight="700"))
+    b.append(box(350, 278, 490, 36, "P' = \"email=alice&role=root\"   (Privilege Escalation Verified!)", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=12, weight="700"))
 
     b.append(text(W / 2, 405, "Scope: ProfileService in attacks.mjs is a local in-memory simulation for defensive education.", size=10.5, fill=MUTED))
     return svg(W, 420, "Vector 1 — Precision Bit-Flipping Mechanics", "".join(b),
@@ -235,6 +267,64 @@ def d4():
     return svg(W, 436, "Vector 2 — Two-Time Pad Keystream Reuse", "".join(b),
                subtitle="reusing a nonce destroys confidentiality by collapsing ciphertexts into plaintext XOR")
 
-for name, fn in [("modes-ctr-gcm-cbc", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4)]:
-    (OUT / f"{name}.svg").write_text(fn() + "\n")
-    print("wrote", name + ".svg")
+# ---------------- Diagram 5: Vector 3 Edit-Oracle Keystream Extraction ----------------
+def d5():
+    b = [panel(30, 70, W - 60, 292)]
+
+    b.append(text(50, 96, "Step 1: the attacker holds the ciphertext and never sees the key", size=12.5, fill=INK, weight="700", anchor="start"))
+    b.append(box(50, 110, 330, 34, "C = P ⊕ S", fill=NEU_F, stroke=NEU_S, tc=INK, mono=True, size=12))
+    b.append(box(410, 110, 430, 34, "K and S are unknown to the attacker", fill=NEU_F, stroke=NEU_S, tc=MUTED, size=11.5))
+
+    b.append(text(50, 178, "Step 2: the attacker asks the edit API to store all-zero PLAINTEXT", size=12.5, fill=INK, weight="700", anchor="start"))
+    b.append(box(50, 192, 330, 46, "edit(C, offset 0,\nnew plaintext = 00 00 … 00)", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=11, lh=14))
+    b.append(arrow(390, 215, 428, 215, color=RED))
+    b.append(box(438, 192, 402, 46, "Server decrypts, overwrites the plaintext\nwith zeros, re-encrypts under the SAME (K, T)", fill=NEU_F, stroke=NEU_S, tc=INK, size=11, lh=14))
+
+    b.append(text(50, 268, "Step 3: because 00 ⊕ S = S, the reply IS the keystream", size=12.5, fill=INK, weight="700", anchor="start"))
+    b.append(box(50, 282, 330, 34, "server returns S", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=12))
+    b.append(text(392, 304, "⇒", size=17, fill=MUTED, weight="700"))
+    b.append(box(414, 282, 426, 34, "P = C ⊕ S — whole plaintext, one request", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=11))
+
+    b.append(text(W / 2, 386, "Scope: DocumentEditorService in attacks.mjs is a local in-memory oracle for defensive education.", size=10.5, fill=MUTED))
+    return svg(W, 400, "Vector 3 — Keystream Extraction via an Edit Oracle", "".join(b),
+               subtitle="an API that re-encrypts attacker-chosen plaintext under an unchanged counter leaks the keystream")
+
+# ---------------- Diagram 6: Vector 4 Counter Reuse Regenerates Keystream ----------------
+def d6():
+    b = [panel(30, 70, W - 60, 230)]
+    b.append(text(W / 2, 96, "A 2-bit counter field has only 4 states, so block 5 reuses the counter block of block 1",
+                  size=12, fill=MUTED))
+
+    x0, bw, gap, y = 62, 88, 12, 120
+    for i in range(8):
+        ctr = i % 4
+        dup = i >= 4
+        x = x0 + i * (bw + gap)
+        fill, stroke, tc = ("#fee2e2", RED, "#991b1b") if dup else (NEU_F, NEU_S, INK)
+        b.append(f'<rect x="{x}" y="{y}" width="{bw}" height="58" rx="8" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>')
+        b.append(text(x + bw / 2, y + 20, f"T = N‖{ctr}", size=11, fill=tc, mono=True, weight="700"))
+        b.append(text(x + bw / 2, y + 38, f"S{ctr}", size=12, fill=tc, mono=True, weight="700"))
+        b.append(text(x + bw / 2, y + 52, f"block {i + 1}", size=9.5, fill=MUTED))
+
+    b.append(text(W / 2, 212, "Blocks 5-8 regenerate the keystream of blocks 1-4 — every pair is a two-time pad within one stream.",
+                  size=11.5, fill=RED, weight="600"))
+    b.append(text(W / 2, 240, "The invariant: an identical counter block under an identical key always yields an identical keystream block.",
+                  size=11.5, fill=INK))
+    b.append(text(W / 2, 262, "Real systems meet this by field sizing, not by AES wrapping: RFC 3686 §4 gives the block counter 32 bits,",
+                  size=11, fill=MUTED))
+    b.append(text(W / 2, 278, "capping one packet at 2³² − 1 blocks (68,719,476,720 octets) before the counter would repeat under that key.",
+                  size=11, fill=MUTED))
+
+    b.append(text(W / 2, 326, "Scope: educational illustration of counter reuse; the demo wraps a tiny counter in software rather than overflowing AES.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 340, "Vector 4 — Counter Reuse Regenerates Keystream", "".join(b),
+               subtitle="a counter field too small for the traffic repeats counter blocks, and repeated counter blocks repeat keystream")
+
+DIAGRAMS = [("modes-ctr-gcm-cbc", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4), ("vector3-edit-oracle", d5), ("vector4-counter-reuse", d6)]
+
+# Guarded so the helpers can be imported (e.g. to unit-test the layout guards)
+# without the import writing files as a side effect.
+if __name__ == "__main__":
+    for name, fn in DIAGRAMS:
+        (OUT / f"{name}.svg").write_text(fn() + "\n")
+        print("wrote", name + ".svg")

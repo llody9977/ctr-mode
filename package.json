@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Why AES-CTR is unsafe without authentication — interactive demonstrations running real AES in the browser.",
+  "description": "AES-CTR provides confidentiality, not integrity — what the missing tag costs, and the two correct fixes, with interactive demonstrations running real AES in the browser.",
   "scripts": {
     "test": "node --test",
     "lint": "eslint ."

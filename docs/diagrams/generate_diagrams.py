@@ -9,6 +9,7 @@ purple, amber, blue) stay fixed — they read on either background.
 Run: `python3 docs/diagrams/generate_diagrams.py` (writes the .svg files beside it).
 """
 import pathlib
+import re
 
 OUT = pathlib.Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
@@ -32,8 +33,7 @@ STYLE = (
     '--ink:#e6edf3;--muted:#9aa4b2;--neuf:#1c2330;--neus:#3d444d;--arw:#6e7681}}'
     '.cardb{fill:var(--card);stroke:var(--border)}.card{fill:var(--card)}'
     '.panel{fill:var(--panel);stroke:var(--border)}'
-    '.neu{fill:var(--neuf);stroke:var(--neus)}.cellA{fill:var(--neuf);stroke:var(--neus)}'
-    '.xor{fill:var(--card);stroke:var(--muted)}'
+    '.fneu{fill:var(--neuf)}.sneu{stroke:var(--neus)}'
     '.ink{fill:var(--ink)}.muted{fill:var(--muted)}'
     '.arw{stroke:var(--arw)}.arwhead{fill:var(--arw)}'
     '</style>'
@@ -42,8 +42,50 @@ STYLE = (
 def esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+# A theme sentinel resolves to a CSS class, never to a literal attribute value.
+# The distinction matters because `fill="@neuf"` is not a valid SVG paint: browsers
+# discard the invalid value and fall back to the initial one, black. Against the
+# dark palette a black box with light --ink text reads as deliberate, so the fault
+# is invisible in dark theme and renders as an unreadable black box in light theme.
+# Per-property classes, rather than one combined class, so a neutral fill composes
+# with a semantic stroke — the exact case that previously fell through to a literal.
+FILL_CLASS = {INK: "ink", MUTED: "muted", NEU_F: "fneu"}
+STROKE_CLASS = {NEU_S: "sneu", ARROW: "arw"}
+
+def _paint(fill=None, stroke=None, extra_classes=()):
+    """Build the paint attributes for a shape, mapping sentinels to CSS classes.
+
+    Raises on an unmapped sentinel rather than emitting it, so a new theme colour
+    cannot silently reach the output as an invalid attribute value.
+    """
+    classes, attrs = list(extra_classes), []
+    for value, table, prop in ((fill, FILL_CLASS, "fill"), (stroke, STROKE_CLASS, "stroke")):
+        if value is None:
+            continue
+        if value in table:
+            classes.append(table[value])
+        elif str(value).startswith("@"):
+            raise ValueError(f"unmapped theme sentinel {value!r} used as {prop}")
+        else:
+            attrs.append(f'{prop}="{value}"')
+    if classes:
+        attrs.insert(0, f'class="{" ".join(classes)}"')
+    return " ".join(attrs)
+
 def _fillattr(color):
-    return {INK: 'class="ink"', MUTED: 'class="muted"'}.get(color, f'fill="{color}"')
+    return _paint(fill=color)
+
+def guard_sentinels(name, markup):
+    """Fail generation if any theme sentinel survived into the output.
+
+    The layout guards in box() and alabel() catch geometry the eye would catch;
+    this catches a colour fault that renders as plausible in one theme only, which
+    no XML, link, or checksum check can see.
+    """
+    leaked = sorted(set(re.findall(r'"(@[a-z]+)"', markup)))
+    if leaked:
+        raise ValueError(f"{name}: theme sentinels reached the output as literal values: {leaked}")
+    return markup
 
 def text(x, y, s, size=13, fill=INK, anchor="middle", weight="400", mono=False, lh=15):
     font = MONO if mono else SANS
@@ -71,10 +113,8 @@ def box(x, y, w, h, label, fill=NEU_F, stroke=NEU_S, tc=INK, mono=False, rx=9, s
         raise ValueError(f"box text {label.splitlines()[0]!r} needs {n} lines ({n * lh}px), box is {h}px")
     cx, cy = x + w / 2, y + h / 2
     first = cy - (n - 1) * lh / 2 + size / 3
-    if fill == NEU_F and stroke == NEU_S:
-        rect = f'<rect class="neu" x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" stroke-width="{sw}"/>'
-    else:
-        rect = f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>'
+    rect = (f'<rect {_paint(fill, stroke)} x="{x}" y="{y}" width="{w}" height="{h}" '
+            f'rx="{rx}" stroke-width="{sw}"/>')
     return rect + text(cx, first, label, size=size, fill=tc, mono=mono, weight=weight, lh=lh)
 
 def arrow(x1, y1, x2, y2, dashed=False, color=ARROW, sw=2):
@@ -116,7 +156,7 @@ def svg(w, h, title, body, subtitle=None):
             + text(w / 2, 32, title, size=17, fill=INK, weight="700"))
     if subtitle:
         head += text(w / 2, 52, subtitle, size=12, fill=MUTED)
-    return head + body + '</svg>'
+    return guard_sentinels(title, head + body + '</svg>')
 
 W = 900
 
@@ -188,7 +228,7 @@ def d2():
         (680, 190, "Vector 4", "Counter Rollover / Wrapping", "keystream collision", AMBER),
     ]
     for x, w, vt, desc, mode, ac in vs:
-        b.append(f'<rect class="neu" x="{x}" y="{vy}" width="{w}" height="{vh}" rx="9" stroke-width="1.5"/>')
+        b.append(f'<rect {_paint(NEU_F, NEU_S)} x="{x}" y="{vy}" width="{w}" height="{vh}" rx="9" stroke-width="1.5"/>')
         b.append(f'<rect x="{x}" y="{vy}" width="6" height="{vh}" rx="3" fill="{ac}"/>')
         cx = x + w / 2
         b.append(text(cx, vy + 22, vt, size=13, fill=INK, weight="700"))
@@ -301,7 +341,7 @@ def d6():
         dup = i >= 4
         x = x0 + i * (bw + gap)
         fill, stroke, tc = ("#fee2e2", RED, "#991b1b") if dup else (NEU_F, NEU_S, INK)
-        b.append(f'<rect x="{x}" y="{y}" width="{bw}" height="58" rx="8" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>')
+        b.append(f'<rect {_paint(fill, stroke)} x="{x}" y="{y}" width="{bw}" height="58" rx="8" stroke-width="1.5"/>')
         b.append(text(x + bw / 2, y + 20, f"T = N‖{ctr}", size=11, fill=tc, mono=True, weight="700"))
         b.append(text(x + bw / 2, y + 38, f"S{ctr}", size=12, fill=tc, mono=True, weight="700"))
         b.append(text(x + bw / 2, y + 52, f"block {i + 1}", size=9.5, fill=MUTED))

@@ -1,214 +1,266 @@
-# Fresh review record: ctr-mode documentation and demonstration site
+# Fresh review record: ctr-mode documentation, demonstrations, and figures
 
-> Lives at `reviews/LATEST_REVIEW.md` and holds the most recent review audit record for `ctr-mode`.
-> Earlier records are retrievable with `git log -p --follow reviews/LATEST_REVIEW.md`.
+> Lives at `reviews/LATEST_REVIEW.md` and is overwritten by each new review — this file always holds the
+> most recent one. Earlier records are in git, not in this folder:
+> `git log -p --follow reviews/LATEST_REVIEW.md` for the full series,
+> `git show <commit>:reviews/LATEST_REVIEW.md` for one in full.
 
 ## Status and baseline
 
-- Status: 18 required findings raised and remediated, plus all previously optional coverage now taken; remediation verified against a re-captured state
-- Review mode: Fresh review, followed by two authorized remediation passes (the second prompted by reader feedback on the page's framing)
+- Status: Complete with findings — 11 required findings and 5 optional items raised, all remediated in an authorized pass afterwards
+- Review mode: Fresh review, followed by one authorized remediation phase
 - Review date: 2026-08-23
-- Branch: main
-- Reviewed commit: `28456244fb8d5b1092362207e5e68bbab4dd3596`
-- Worktree at review time: clean
-- Reviewed-state fingerprint: `e957d7f443edef75cd094351f5e7cd76644839483864239f4121d0749b28147f`
-- Post-remediation state: uncommitted worktree. A fingerprint is deliberately not pinned here — writing this
-  record changes the repository state it would describe, so any value quoted would be stale on arrival.
-  Capture one with `python3 scripts/capture_review_state.py` after the remediation is committed.
+- Reviewer: doc-review standard, applied to the frozen commit below
+- Branch: `fix/html-escaping-by-default`
+- Commit: `ade436e488b6c1e7b5d53f07fa2582fe011f5ddb`
+- Worktree: Clean at review time, and unchanged for the whole review
+- Review state ID: `9771642a1ef695c6409145ab23fa1d4edb6d8458b15948f9c028537025c38788`
+  (scoped content fingerprint `ebad0a00735d738b8bbda940a1cfd46ff65c1cc4f6417ce356742166984d30df`, 41 files)
 - State-capture command: `python3 scripts/capture_review_state.py`
-- Baseline changed during review: No. The review completed against the clean commit; all edits were made afterwards as a separate authorized phase, and the affected checks were re-run against the new state.
+- Baseline changed during review: No. Every finding below was reached against `ade436e`. Remediation
+  followed as a separate authorized phase and is described under **Remediation**. A post-remediation
+  fingerprint is deliberately not pinned here — writing this record changes the state it would describe,
+  so any value quoted would be stale on arrival. Re-capture after committing.
+
+The previous record covered `2845624`. Three commits landed after it, most recently `ade436e`
+(escape-by-default HTML construction), which no record covered.
 
 ## Scope inventory
 
 | Artifact | Type | Direct dependents or generated counterpart | Inspected |
 | --- | --- | --- | --- |
-| `docs/index.html` | Documentation and UI shell | `docs/styles.css`, `docs/js/ui.mjs`, `docs/diagrams/*.svg` | Yes |
+| `docs/index.html` | Documentation and UI shell | `styles.css`, `js/ui.mjs`, `diagrams/*.svg` | Yes |
 | `docs/styles.css` | Stylesheet | `docs/index.html` | Yes |
-| `docs/js/crypto.mjs` | Cryptographic primitives | `test/attacks.test.mjs`, `docs/js/attacks.mjs` | Yes |
-| `docs/js/attacks.mjs` | Attack vectors and defenses | `test/attacks.test.mjs`, `docs/js/ui.mjs` | Yes |
-| `docs/js/ui.mjs` | UI wiring | `docs/index.html` | Yes |
-| `docs/diagrams/generate_diagrams.py` | Diagram generator | the four committed `.svg` files | Yes |
-| `docs/diagrams/*.svg` (6) | Figures | `docs/index.html`, `README.md` | Yes, each also loaded standalone |
-| `test/attacks.test.mjs` | Test suite | `docs/js/crypto.mjs`, `docs/js/attacks.mjs` | Yes |
+| `docs/js/crypto.mjs` | Cryptographic primitives | `attacks.mjs`, `test/attacks.test.mjs` | Yes |
+| `docs/js/attacks.mjs` | Attack vectors and defensive controls | `ui.mjs`, `test/attacks.test.mjs` | Yes |
+| `docs/js/ui.mjs` | UI wiring and verdict rendering | `docs/index.html` | Yes |
+| `docs/js/html.mjs` | Escape-by-default HTML construction (new in `ade436e`) | `ui.mjs`, `test/html.test.mjs` | Yes |
+| `docs/diagrams/generate_diagrams.py` | Diagram generator | the six committed `.svg` files | Yes |
+| `docs/diagrams/*.svg` (6) | Figures | `docs/index.html`, `README.md` | Yes — each also loaded standalone, light and dark |
+| `test/attacks.test.mjs`, `test/html.test.mjs` | Test suites | `docs/js/*` | Yes |
 | `README.md` | Repository landing page | repository root | Yes |
-| `DISCLAIMER.md`, `SECURITY.md` | Scope and reporting policy | repository root | Yes |
-| `docs/styles.css` code-block rules | Sample presentation | `docs/index.html` | Yes |
-| `.github/workflows/pages.yml` | Deployment of `docs/` | `docs/` | Yes |
+| `package.json` | Package metadata and scripts | repository root | Yes |
+| `eslint.config.mjs` | Static analysis configuration | `docs/js/`, `test/` | Yes |
+| `DISCLAIMER.md`, `SECURITY.md`, `CONTRIBUTING.md` | Scope, reporting, contribution policy | repository root | Yes |
+| `.github/workflows/*.yml`, `.pre-commit-config.yaml` | CI, deployment, secret gates | repository | Yes |
 | `reviews/CONTENT_DECISIONS.yml` | Durable decision register | `scripts/verify_content_decisions.py` | Yes |
 
-Out-of-scope: general cryptography outside CTR/CBC/GCM mode behaviour; the deployed GitHub Pages instance (local server only); `node_modules/`.
+Out-of-scope boundaries and reason: general cryptography outside CTR / GCM / Encrypt-then-MAC behaviour;
+`node_modules/`; the MEGA and Hongjun Wu papers were confirmed to resolve but not re-read from source,
+resting instead on CD-0004 and CD-0005.
 
 ## Review passes
 
 | Pass | Complete | Evidence or notes |
 | --- | --- | --- |
-| Factual and technical correctness | Yes | SP 800-38A §6.5 and Appendix D, SP 800-38D §8/§8.3 parsed from the published PDFs and quoted directly. |
-| Evidence, authority, version, date, applicability | Yes | Every CVE fetched from NVD; every cited paper resolved to its primary record. Four citations failed and were corrected. |
-| Adversarial wording, assumptions, attacker state | Yes | MEGA's malicious-server threat model was absent and has been stated; detection tests now carry their negative-result boundary. |
-| Terminology, taxonomy, conceptual boundaries | Yes | GMAC vs GHASH and CBC's bounded two-block spread corrected against the standards' own definitions. |
-| Cross-format consistency | Yes | Corrected claims swept across HTML, JS, generator, SVG, and README; two occurrences survived in code comments and were fixed. |
-| Visual content, independently | Yes | Each SVG loaded standalone at its own URL as a detached artifact, separately from the prose-agreement check. |
-| Cross-page consistency and duplication | Yes | README and page reconciled on Vector 3 mechanism, Vector 4 scope, and Encrypt-then-MAC key separation. |
-| Topic completeness | Yes | Matrix below; two required gaps found (key separation, detection boundary) and closed. |
-| Mechanical, generator, link, rendered-output validation | Yes | `node --test` 14/14, `eslint .` clean, generator idempotent and byte-stable, all 16 outbound links HTTP 200, page and demos exercised live. |
-| Durable content-decision reconciliation | Yes | CD-0001…CD-0003 reaffirmed, none reversed; CD-0004…CD-0007 added. |
-| Residual exhaustion | Yes | Post-fix sweep found the GMAC conflation in `attacks.mjs` and the Vector 3 imprecision in its code comments; both corrected. |
+| Factual and technical correctness | Yes | Every standards quote re-extracted from the published PDFs and compared verbatim. All correct. |
+| Evidence, authority, version, date, jurisdiction, and applicability | Yes | 19 page links and 10 register URLs fetched. One register URL returned 404 (F-9). §8.2.2 confirmed as the RBG-based construction; §8.3's cap correctly scoped to it. |
+| Adversarial wording, assumptions, attacker state, and counterexamples | Yes | Demonstrations driven with adversarial inputs, not defaults: an email containing "user", the second counter width, edited inputs after encryption. Four false claims surfaced this way (F-2, F-3, F-4). |
+| Terminology, taxonomy, and conceptual boundaries | Yes | AEAD never expanded anywhere (F-6); IND-CPA introduced undefined; "approved KDF" used at normative strength with no source (F-7). |
+| Cross-format consistency | Yes | `package.json` still carried the framing CD-0008 superseded (F-5); README omitted `html.mjs` (F-11); three figures lacked captions the prior record claimed they had (F-10). |
+| Cross-page consistency, prerequisites, sequence, and duplication | Yes | README, page, DISCLAIMER and diagrams reconciled on framing, Vector 3 mechanism and Vector 4 scope. Consistent apart from F-5 and F-11. |
+| Topic completeness | Yes | Matrix below. No required knowledge gap; the defects were in rendering and demonstration integrity, not coverage. |
+| Mechanical, link, generator, executable, and rendered-output validation | Yes | Table below. Generator provenance established by re-execution; rendering checked in **both** themes, which is what exposed F-1. |
+| Durable content-decision reconciliation | Yes | CD-0001…CD-0009 dispositioned below after independent claim review. None reversed. |
+| Residual exhaustion | Yes | After F-1 was found in one figure, all six were swept for the same sentinel class (two more hit) and the generator was read for every other emission path. After F-3, every verdict site was audited, which produced F-4. |
+| Argument integrity | Yes | Thesis extracted and tested; comparison set, demonstration sufficiency and dangling claims checked separately. See below. |
+
+### Argument integrity
+
+**Thesis, in one sentence:** *AES-CTR is a NIST-approved confidentiality mode that makes no integrity
+guarantee, so the correct response is not to abandon it but to authenticate the ciphertext — with an
+AEAD, or with Encrypt-then-MAC.*
+
+Supported at that strength and scope by the page's own sources, all re-verified verbatim.
+
+- **Comparison-set test** — passes. Three rows, all options the reader can select, one axis. CD-0009 holds.
+- **Demonstration sufficiency** — the defensive comparison passes (identical forgery, three outcomes).
+  Vectors 1 and 4 **failed**: for the inputs in F-2 and F-3 they did not show the contrast they claimed.
+- **Dangling-claim test** — truncation, splicing and replay are each developed. "Approved KDF" and
+  IND-CPA were introduced and never developed (F-6, F-7).
+- **Structure test** — passes; section order matches the reader's decision path.
 
 ## Material-claim ledger
 
-| ID | Location | Material claim | Source or verification | Result |
-| --- | --- | --- | --- | --- |
-| C-001 | `index.html` §Mechanism | CTR encrypts counter blocks to produce keystream XORed with plaintext | SP 800-38A §6.5, quoted | Verified |
-| C-002 | `index.html` §Vector 1 | `C ⊕ Δ` decrypts to `P ⊕ Δ` with zero error spread | SP 800-38A App. D; `node --test` | Verified |
-| C-003 | `index.html` §Vector 2 | Reusing (Key, Nonce) gives `C₁ ⊕ C₂ = P₁ ⊕ P₂` | Cryptopals Set 3; `node --test` | Verified |
-| C-004 | `index.html` §Vector 3 | An edit oracle fed zero *plaintext* returns the keystream | `attacks.mjs`, live demo | **Corrected** — prose said "overwrite the ciphertext" |
-| C-005 | `index.html` §Vector 4 | Counter blocks must be distinct across all messages under a key | SP 800-38A §6.5, quoted verbatim | Verified, wording tightened |
-| C-006 | `index.html` §Vector 4 | RFC 3686's 32-bit block counter caps a packet at 2³²−1 blocks | RFC 3686 §4, quoted | Verified (added) |
-| C-007 | `index.html` §Defenses | Encrypt-then-MAC requires independent encryption and MAC keys | `crypto.mjs` already did this; prose did not say so | **Corrected** |
-| C-008 | `index.html` §Residual risk | The ≤2⁻³² bound is §8; the 2³² invocation cap is §8.3 | SP 800-38D, both sections quoted | **Corrected** — attribution had been merged into §8.3 |
-| C-009 | `index.html` evidence table | KRACK / CVE-2017-13077 | NVD | Verified; vector mapping narrowed to Vector 2 |
-| C-010 | `index.html` evidence table | MEGA 2022 | ePrint 2022/959 Figs. 2–3 | **Corrected** — see CD-0004, CD-0005 |
-| C-011 | `index.html` evidence table | Microsoft Office RC4 keystream reuse | ePrint 2005/007 | **Corrected** — see CD-0004 |
-| C-012 | `index.html` evidence table | Shadowsocks stream-cipher redirect attack | shadowsocks-org #154, Feb 2020 | **Corrected** — see CD-0004 |
-| C-013 | `test/attacks.test.mjs` | SP 800-38A F.5.1/F.5.2 vectors | Published PDF, compared byte-for-byte | Verified |
-| C-014 | `test/attacks.test.mjs` | RFC 3686 TV#1/TV#2 incl. keystream | RFC text, compared field by field | Verified |
-| C-015 | `modes-*.svg` | AES-GCM security property | SP 800-38D §8 | **Corrected** — unqualified "IND-CCA2 Secure" now nonce-conditioned |
-| C-016 | `modes-*.svg` | CBC error propagation | SP 800-38A App. D, quoted | **Corrected**, then removed — the CBC row was dropped from the comparison entirely (CD-0009), so the claim no longer appears |
-| C-028 | `modes-*.svg` | "No AEAD tag (padding-oracle risk)" | Nowhere — the page raised padding oracles only here and never developed them | **Removed** — a dangling threat claim, dropped with the CBC row |
-| C-017 | `index.html`, `ui.mjs`, `attacks.mjs`, generator | GCM's tag called a "GMAC tag" | SP 800-38D | **Corrected** in all four places — see CD-0006 |
-| C-018 | Title, lede, README, DISCLAIMER | Framing implied CTR should not be used at all | SP 800-38A abstract: CTR is among five approved modes, with no advice against it | **Corrected** — see F-18, CD-0008 |
-| C-019 | `index.html` §What CTR guarantees | SP 800-38A conditions CTR malleability on integrity "not being protected" | SP 800-38A App. D, quoted | Verified (added) |
-| C-020 | `index.html` §What CTR guarantees | GCM's confidentiality is "a variation of the Counter mode of operation" | SP 800-38D §1, quoted | Verified (added) |
-| C-021 | `index.html` §Fix Option B | Encrypt-then-MAC "is secure from all points of view"; keys "independently chosen"; verify before decrypting | Bellare & Namprempre ePrint 2000/025, quoted | Verified (added) |
-| C-022 | `index.html` §Fix, both samples | The published GCM and Encrypt-then-MAC samples work and reject tampering | Extracted verbatim from the page and executed under Node: round-trip, 1-bit tamper, truncation, short-payload, AAD mismatch | Verified (added) |
-| C-027 | `index.html` §Fix Option B | Nonce width of the published Encrypt-then-MAC sample | Birthday bound q²/2^(n+1) against SP 800-38D §8's 2⁻³² ceiling | **Corrected at check-in** — a 64-bit nonce reached the bound at ~92,000 messages against ~6.07 billion for the 96-bit sample beside it; now 96-bit nonce ‖ 32-bit counter |
-| C-023 | `index.html` §Operating limits | Seven permitted GCM tag lengths; one fixed value per key; short tags risk exposing subkey H | SP 800-38D §5.2.1.2 and App. C, quoted | Verified (added) |
-| C-024 | `index.html` §Operating limits | GCM authenticity assurance scoped to about 64 GB per invocation | SP 800-38D §1, quoted | Verified (added) |
-| C-025 | `index.html` §Quieter failures | GCM "does not inherently prevent … replaying"; remedy is duplicate-IV monitoring or a sequence number in the AAD | SP 800-38D App. D, quoted | Verified (added) |
-| C-026 | `index.html` §Primary references | FIPS 198-1 status | CSRC publication page and withdrawal notice | **Corrected** — the first URL was guessed and returned 404; status is now stated as proposed for withdrawal with SP 800-224 still in draft |
-| C-029 | `index.html` §The fix, demo | The identical forgery is accepted under raw CTR and rejected by both defenses, with no plaintext returned | `compareTamperDetection` in `attacks.mjs`; three tests in `test/attacks.test.mjs`; exercised live in-browser | Verified (added) |
+| ID | Artifact and location | Material claim | Classification | Primary source or verification | Repetitions checked | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| C-101 | `index.html` lede, §What CTR guarantees | CTR is one of five approved SP 800-38A confidentiality modes; NIST does not advise against it | Standard | SP 800-38A abstract, quoted verbatim | README, DISCLAIMER, `package.json`, modes figure | **Corrected** — `package.json` still said "unsafe" (F-5) |
+| C-102 | `index.html` §What CTR guarantees | ECB alone carries a "should not be used" caveat | Standard | SP 800-38A §6.1, quoted | page only | Verified |
+| C-103 | `index.html` §What CTR guarantees | CTR malleability is conditioned on integrity "not being protected" | Standard | SP 800-38A App. D (Error Properties), quoted | modes figure, taxonomy | Verified |
+| C-104 | `index.html` §Mechanism, §Vector 4 | Counter blocks must be distinct across all messages under a key | Standard | SP 800-38A §6.5, quoted | vector4 figure, `attacks.mjs` | Verified |
+| C-105 | `index.html` lede, §What CTR guarantees | GCM's confidentiality is "a variation of the Counter mode of operation" | Standard | SP 800-38D §1, quoted | README, modes figure, callout | Verified |
+| C-106 | `index.html` §Operating limits | GCM authenticity assurance scoped to "up to about 64 gigabytes per invocation" | Standard | SP 800-38D §1, quoted | page only | Verified |
+| C-107 | `index.html` §Tag length | Exactly seven permitted tag lengths; one fixed value per key | Standard | SP 800-38D §5.2.1.2, both sentences quoted | page only | Verified |
+| C-108 | `index.html` §Tag length | Short tags may let the attack "produce the hash subkey, H, after which the authentication assurance is completely lost" | Standard | SP 800-38D **App. C**, quoted verbatim; attribution confirmed against App. B | page only | Verified — correctly attributed |
+| C-109 | `index.html` §Nonce uniqueness | The ≤2⁻³² bound is §8; the 2³² invocation cap is §8.3 and applies to the RBG-based construction of §8.2.2 | Standard | SP 800-38D §8, §8.3, §8.2.2, all quoted | page only | Verified — including that the cap plus a ≥96-bit nonce is what makes §8's bound hold |
+| C-110 | `index.html` §Quieter failures | GCM "does not inherently prevent … replaying"; remedies are duplicate-IV monitoring or a sequence number / time stamp in the AAD | Standard | SP 800-38D App. D, quoted | page only | Verified |
+| C-111 | `index.html` §Vector 4, §Counter exhaustion, vector4 figure | RFC 3686 §4 gives the block counter 32 bits, capping a packet at 2³²−1 blocks = 68,719,476,720 octets | Standard | RFC 3686 §4, quoted verbatim from the RFC text | prose ×2, figure, alt text | Verified |
+| C-112 | `index.html` §Option B | Encrypt-then-MAC "is secure from all points of view, making it a good choice for a standard" | Research | Bellare & Namprempre §1.1, quoted | modes figure scope line | Verified |
+| C-113 | `index.html` §Option B rule 1 | The composition assumes the keys "are independently chosen" | Research | Bellare & Namprempre §4, quoted verbatim ("We stress that these keys are independently chosen") | `crypto.mjs`, samples, tests | Verified |
+| C-114 | `index.html` §Option B rule 3 | Encrypt-then-MAC verifies the tag before decrypting | Research | Bellare & Namprempre §4 ("Decrypt+verify is performed by first verifying the tag and then decrypting C") | `crypto.mjs`, sample, demo | Verified |
+| C-115 | `index.html` §Option B rules 1 and 3, §Rekeying | Derive both keys from a master secret with an "approved KDF" | **Author's rule stated at normative strength, unsourced** | No citation given; NIST's approved techniques are SP 800-108 Rev. 1 | two occurrences | **Corrected** (F-7) — now cites SP 800-108 Rev. 1 |
+| C-116 | `index.html` §Option A, ×9 across the page | "AEAD" as the primary recommendation | Terminology | Never expanded anywhere in the repository | README ×2, DISCLAIMER ×1 | **Corrected** (F-6) — expanded on first use |
+| C-117 | `index.html` §Option B | The result holds "given an IND-CPA encryption scheme and a strongly unforgeable MAC" | Research, conditional | Bellare & Namprempre; term left undefined for the reader | page only | **Corrected** (F-6) — IND-CPA now defined and the condition attributed |
+| C-118 | `index.html` evidence table | KRACK forced a nonce reset, not counter exhaustion | Research + CVE | NVD CVE-2017-13077 fetched and compared; description matches | vector mapping | Verified |
+| C-119 | `index.html` §Vector 1, `attacks.mjs`, vector1 figure | Flipping ciphertext bytes forges `role=root` with zero error spread | Implementation | `flipCiphertextSubstring` driven with adversarial input | prose, figure, demo, tests | **Corrected** (F-3) — held only when the email contained no "user" |
+| C-120 | `index.html` §Vector 4, `attacks.mjs`, vector4 figure | A counter too small for the traffic regenerates identical keystream | Implementation | `simulateCounterRollover` driven at both offered widths | prose, figure, demo, tests | **Corrected** (F-2) — the 3-bit option produced no collision at all |
+| C-121 | `index.html` §Vector 2 demo | "Full Message 2 Recovered" | Implementation | Driven with inputs edited after encryption | demo verdict | **Corrected** (F-4) — asserted while displaying garbage |
+| C-122 | `index.html` §Vector 3 demo | "100% of Plaintext Recovered in a Single Request" | Implementation | Driven with the document edited after initialisation | demo verdict | **Corrected** (F-4) — recovered a different document from the one shown |
+| C-123 | `modes-ctr-etm-gcm.svg` | The three security-property boxes carrying each option's guarantee | Figure content | Rendered standalone in light and dark | figure only | **Corrected** (F-1) — unreadable black boxes in light theme |
+| C-124 | `vector2-two-time-pad.svg` | `C₁ = P₁ ⊕ S` and `C₂ = P₂ ⊕ S`, the figure's two inputs | Figure content | Rendered standalone in light and dark | figure only | **Corrected** (F-1) |
+| C-125 | `vector4-counter-reuse.svg` | Blocks 1–4 and their counter values, the half blocks 5–8 repeat | Figure content | Rendered standalone in light and dark | figure only | **Corrected** (F-1) |
+| C-126 | `docs/js/html.mjs` | Every interpolated value is escaped unless wrapped in `raw()` | Implementation | Module read in full; all four `raw()` sites confirmed to wrap `html`-produced output; 5 tests | `ui.mjs` call sites | Verified — but unenforced by tooling (O-2) |
+| C-127 | `index.html` Option A and Option B samples | Both published samples work and reject tampering | Implementation, copied by readers | Not executed by any test at review time | — | **Corrected** (O-3) — now extracted from the page and executed |
+
+## Topic completeness matrix
+
+| Topic | Definition | Boundaries | Actors/components | Mechanism/sequence | Assumptions/dependencies | Threats/failures | Limits/residual risk | Selection/use | Operations/evidence | Recovery/lifecycle | Interoperability/migration | Unsafe alternatives | Visual representation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| CTR mode and its integrity gap | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | **Was a required gap** — three figures illegible in light theme and all six illegible at mobile width (F-1, O-1); now covered |
+| The two fixes (AEAD, Encrypt-then-MAC) | Covered — AEAD now expanded | Covered | Covered | Covered | Covered — key independence, IND-CPA condition now stated | Covered | Covered | Covered | Covered — samples now executed by tests | Covered — SP 800-108 KDF now cited | Covered | Covered | Covered |
+| Operating limits and rekeying | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Covered | Not applicable — no alternative in scope | Optional extension, not taken; prose and the RFC bound are clear |
+
+## Cross-format and cross-page ledger
+
+| Concept or claim | Representations compared | Result |
+| --- | --- | --- |
+| "CTR is approved, not unsafe" (CD-0008) | title, lede, callout, README, DISCLAIMER, `package.json`, modes figure | **One survivor** — `package.json` description (F-5), now corrected |
+| Encrypt-then-MAC key independence | prose rule 1, `crypto.mjs`, published sample, demo, tests | Consistent; sample now also tested (O-3) |
+| RFC 3686 counter bound | Vector 4 prose, Operating-limits prose, vector4 figure, figure alt text | Consistent, all four verified against the RFC |
+| Vector 1 mechanism | prose, vector1 figure, `attacks.mjs`, demo, tests | **Divergent** — demo could flip a different field from the one prose and figure describe (F-3); now consistent |
+| Vector 4 mechanism | prose, vector4 figure, `attacks.mjs`, demo, `<select>` labels | **Divergent** — one offered option demonstrated nothing (F-2); now consistent |
+| Repository structure | README `Structure` list vs `docs/js/` contents | **Stale** — `html.mjs` absent (F-11); now listed |
+| Figure captions | `LATEST_REVIEW.md` completeness matrix vs `index.html` | **False** — record claimed six captioned, three were not (F-10); all six now captioned |
 
 ## Visual content ledger
 
-| Visual | Independently correct | Self-sufficient detached | Generator provenance | Defensibility | Result |
-| --- | --- | --- | --- | --- | --- |
-| `modes-ctr-etm-gcm.svg` (was `modes-ctr-gcm-cbc.svg`) | Was not — two wrong claims, and an off-axis CBC row | Was not — no scope line, no caption | Re-run, byte-identical | Neutral comparison | **Rebuilt**: GCM nonce condition and scope line added; CBC row dropped and the axis rebuilt as CTR / CTR+HMAC / GCM — see CD-0009 |
-| `taxonomy.svg` | Yes | Improved — dashed-edge legend added | Re-run, byte-identical | Scope line present | Verified |
-| `vector1-bit-flipping.svg` | Yes | Was not — annotation overpainted and unreadable | Re-run, byte-identical | Scope line present | **Corrected**: label re-spaced, outcome recoloured to danger |
-| `vector2-two-time-pad.svg` | Yes | Yes | Re-run, byte-identical | Scope line present | Verified, unchanged |
-| `vector3-edit-oracle.svg` | Yes | Yes — scope line names the local in-memory oracle | Generated; layout guards pass | Educational, local target only | **New**, rendered standalone |
-| `vector4-counter-reuse.svg` | Yes | Yes — carries the invariant and the RFC 3686 bound | Generated; layout guards pass | Educational illustration | **New**, rendered standalone |
+| Visual | Claims it asserts | Independently correct? | Self-sufficient when detached? | Caption and alt text verified | Generator and correspondence check | Standalone defensibility | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `modes-ctr-etm-gcm.svg` | Three options, one axis; each option's mechanism, security property and tag source | Content correct; **not legible in light theme** | Scope line present but rendered at ~4px on mobile | Alt text verified (650 chars); caption present | Re-run: byte-identical to committed | Neutral comparison | **Corrected** — sentinel leak fixed, regenerated |
+| `taxonomy.svg` | Three root causes → four vectors; solid = primary, dashed = contributing | Yes | Yes — scope line and edge legend | Alt text verified; **caption was missing** | Re-run: byte-identical | Scope line present | **Corrected** — caption added |
+| `vector1-bit-flipping.svg` | Three-step bit-flip math; outcome in danger colour per CD-0007 | Yes | Yes — scope line names the local in-memory service | Alt text verified; **caption was missing** | Re-run: byte-identical | Local target named | **Corrected** — caption added |
+| `vector2-two-time-pad.svg` | Keystream cancellation and two recovery paths | Content correct; **two input boxes not legible in light theme** | Scope line present | Alt text verified; **caption was missing** | Re-run: byte-identical | Scope line present | **Corrected** — sentinel leak fixed, caption added |
+| `vector3-edit-oracle.svg` | Three-step edit-oracle attack; server re-encryption emits the keystream | Yes | Yes | Alt text (407 chars) and caption verified | Re-run: byte-identical | Local oracle named | Verified, unchanged |
+| `vector4-counter-reuse.svg` | Eight blocks, 2-bit counter, blocks 5–8 repeat 1–4; RFC 3686 bound | Content correct; **blocks 1–4 not legible in light theme** | Scope line present | Alt text (452 chars) and caption verified | Re-run: byte-identical | Explicitly not an AES overflow | **Corrected** — sentinel leak fixed, regenerated |
 
-## Per-topic completeness matrix
+Provenance note: all six SVGs were regenerated in an isolated directory from the committed generator and
+compared by SHA-256 **before** any edit. All six matched byte-for-byte, so correspondence was established
+by re-execution, not assumed. That check passed while three figures were rendering as black boxes — exactly
+why it does not substitute for opening the figure.
 
-| Category | Disposition |
-| --- | --- |
-| 1 Definition and purpose | Covered |
-| 2 Scope and conceptual boundaries | Covered |
-| 3 Actors, components, assets | Covered |
-| 4 Mechanism and operating sequence | Covered (Vector 3 mechanism corrected) |
-| 5 Assumptions and prerequisites | Covered (Encrypt-then-MAC key separation added) |
-| 6 Threats and attacker state | Covered (MEGA malicious-server model added) |
-| 7 Limitations and residual risk | Covered — operating-limits section, plus truncation, splicing and replay, plus the Vector 4 simulator boundary |
-| 8 Selection criteria | Covered |
-| 9 Operations, observability, evidence | Covered (detection negative-result boundary added) |
-| 10 Recovery, lifecycle, rekeying | Covered — RFC 3686 §4 bound plus a four-step rekeying discipline (fix the split, count per key, rekey below the bound, derive with an approved KDF) |
-| 11 Interoperability and migration | Covered |
-| 12 Deprecated or unsafe alternatives | Covered |
-| 13 Visual representation | Covered — Vectors 3 and 4 each carry a figure; six figures total, each captioned |
+### Representation opportunities
 
-## Mechanical checks executed
-
-- `npm test` — 14/14 pass, including the NIST and RFC standard vectors.
-- `npm run lint` — clean.
-- `python3 docs/diagrams/generate_diagrams.py` — regenerates all four SVGs; two consecutive runs are byte-stable, and output matched the committed files before any edit, establishing provenance.
-- New generator guards — `box()` rejects text too wide or too tall for its rect; `alabel()` shrinks to a caller-supplied width budget or raises. Both were verified to fire on the exact overflow that shipped.
-- Link check — all 19 outbound hrefs in `docs/index.html` return HTTP 200.
-- Sample execution — both published code samples run under Node against Web Crypto and reject 1-bit tampering, truncation, and AAD mismatch.
-- Responsive check — at a 375px viewport the page does not scroll horizontally; code blocks and the evidence table scroll within themselves and every figure fits.
-- Rendered validation — page and all four SVGs loaded in a browser; zero console errors; zero external network requests; all five demos exercised (bit-flip forges `role=root`, edit oracle recovers the full document, counter simulator produces duplicates, AES-GCM and Encrypt-then-MAC both reject tampering).
-- `python3 scripts/verify_content_decisions.py` — 7 decisions validated.
-
-These prove structural and behavioural properties. They do not establish factual accuracy: every citation error found in this review passed all of them.
-
-## Findings — all remediated
-
-Required corrections F-1 to F-17, by class:
-
-1. **Citations (F-1 to F-5)** — three of four CVE identifiers resolved to unrelated vulnerabilities; the MEGA citation had a fabricated author list and a non-resolving hostname; the Microsoft Office source URL returned 404; the Shadowsocks entry had the wrong year and misstated SIP004. Table rewritten against primary sources. See CD-0004, CD-0005.
-2. **Mechanism accuracy (F-6)** — Vector 3 prose described overwriting the ciphertext rather than submitting zero plaintext, contradicting its own API and implementation. Corrected in page, README, and code comments.
-3. **Figures (F-7 to F-10)** — an overpainted annotation, an unqualified GCM security claim, a wrong CBC propagation claim, and a compromise outcome drawn in the safe colour. All corrected; generator now guards the two layout classes. See CD-0006, CD-0007.
-4. **Guidance completeness (F-11 to F-13)** — missing MAC key separation, missing negative-result boundary on detection tests, and an unstated simulation boundary on Vector 4. All added, the last with RFC 3686's numeric bound.
-5. **Standards precision (F-14 to F-16)** — GMAC/GHASH conflation in four places, §8 vs §8.3 attribution, and KRACK mis-mapped to counter rollover. All corrected.
-6. **Review record (F-17)** — the prior record claimed "Complete with no open findings" with `Commit: INITIAL` and no state ID, marked all four figures self-sufficient, and had no ledger entry for any of the four evidence citations where every error sat. This record replaces it.
-7. **Framing (F-18, raised by reader feedback rather than by the review)** — the project asserted that AES-CTR "is unsafe", implying it should not be used. NIST says no such thing: SP 800-38A lists CTR among five approved confidentiality modes and, unlike ECB, never advises against it; Appendix D conditions CTR malleability on integrity "not being protected"; and SP 800-38D describes GCM's confidentiality as "a variation of the Counter mode of operation", so recommending GCM as a replacement misdescribes what actually changes. The project now leads with what CTR does and does not guarantee, and presents the fix as composition — an AEAD, or AES-CTR with HMAC — each with a runnable, tested sample. Supersedes CD-0002. See CD-0008.
-
-This finding is the most significant of the eighteen: the first review checked every claim on the page for accuracy but did not challenge the premise the page was built on. Sources were verified individually while the conclusion they were assembled into overstated them.
-
-### Check-in gate findings (remediated before commit)
-
-The pre-check-in review of the resulting diff surfaced four further issues in the newly added code, all fixed before the commit:
-
-| # | Location | Issue | Resolution |
+| Location | What is dense | Proposed form | Required gap or optional extension |
 | --- | --- | --- | --- |
-| 1 (high) | `docs/index.html` Option B sample | 64-bit random nonce reached the 2⁻³² collision bound at ~92,000 messages, versus ~6.07 billion for the 96-bit GCM sample offered beside it as an equal alternative, with no bound stated | Widened to a 96-bit nonce with a 32-bit counter, the RFC 3686 shape, with the margin noted inline |
-| 2 (medium) | `docs/index.html` Option A sample | `async function open(...)` shadows `window.open` when pasted into a classic script or console | Renamed to `unseal()` |
-| 3 (low) | `docs/index.html` `openEtM` | Missing the minimum-length guard the repository's own `crypto.mjs:134` performs | Guard added; behaviour still fails closed either way |
-| 4 (low) | `docs/diagrams/generate_diagrams.py` | `box()` width guard assumed 0.5 em per character for monospace text as well as sans (~0.6 em), under-protecting the boxes most prone to overflow | Estimate is now mono-aware |
+| §Operating limits, rekeying discipline | Four sequential rules with a threshold relationship | Timeline or threshold diagram | Optional extension — not taken; the numbered list is clear and the RFC bound is stated numerically |
+| §Quieter failures | Truncation, splicing, replay — three independent failure shapes | Three-panel comparison | Optional extension — not taken; each is two sentences and self-contained |
 
-Finding 1 also required correcting a claim it invalidated: the samples and the in-page demonstrations no longer share a counter split, so the text now states that difference rather than calling them the same code paths.
+## Applicable durable content decisions
 
-### Post-review reader findings (F-19, F-20)
+| Decision ID | Affected concept | Disposition | Current evidence and rationale |
+| --- | --- | --- | --- |
+| CD-0001 | Three root causes, four vectors | Reaffirmed | Intact in prose, taxonomy figure and code. |
+| CD-0002 | "Only approved mitigations" framing | Unchanged — remains superseded by CD-0008 | Preserved as history, not rewritten. |
+| CD-0003 | GCM nonce uniqueness and 2³² ceiling | Reaffirmed; record text corrected | Coverage intact under a renamed, widened section. The `approved_outcome` named a heading that no longer exists (F-8) and now describes the current location and why it moved. |
+| CD-0004 | Evidence-table citation policy | Reaffirmed | KRACK CVE re-fetched from NVD and matches; the other three rows correctly say "no CVE assigned". |
+| CD-0005 | MEGA as a boundary case under root cause 3 | Reaffirmed | Row still states AES-CCM* chunk authentication, AES-ECB key wrapping, and the malicious-server model. |
+| CD-0006 | GHASH vs GMAC; CBC error propagation | Reaffirmed | No occurrence of "GMAC" as a name for GCM's tag. Its CBC element remains inapplicable after CD-0009. |
+| CD-0007 | Never render a compromise outcome in the safe colour | Reaffirmed, and reinforced | Vector 1's outcome is still in the danger palette. F-1 was the adjacent failure: a *neutral* fill rendering as black. CD-0010 now covers colour correctness as rendered, not only as chosen. |
+| CD-0008 | CTR framed as needing composition, not avoidance | Reaffirmed; one violation found and a dead source URL corrected | `package.json` still carried the superseded framing (F-5). The record's FIPS 198-1 URL returned 404 (F-9) — the page's own link was correct. |
+| CD-0009 | Compare only selectable options | Reaffirmed | Three-row axis intact; no CBC row, no padding-oracle claim. |
+| CD-0010 | Figure legibility as rendered | **New** | Theme sentinels never reach output as literal values; figures scroll rather than shrink below legibility. |
+| CD-0011 | Verdicts derived from observed results | **New** | Every demonstration reports what it produced; ambiguous or non-demonstrating runs fail loudly. |
 
-Reader feedback asked why the mode comparison included AES-CBC when the subject is CTR, and whether CTR against GCM and/or CTR-plus-authentication would not fit better. It would, and did not:
+## Mechanical and rendered checks
 
-- CBC is not one of the two fixes the page offers, so its row could not be selected and did not inform the decision the page asks the reader to make.
-- The axis was mixed: CTR against CBC contrasts two unauthenticated confidentiality modes on tamper behaviour, while GCM sits on the separate axis of authenticated versus not.
-- The CBC row asserted padding-oracle risk, a threat raised nowhere else in the repository and never developed — a dangling claim that the earlier passes verified for accuracy without asking whether it belonged.
+| Check | Scope | Result | What this does not prove |
+| --- | --- | --- | --- |
+| `npm test` | whole repository | 32/32 pass (22 before remediation) | Nothing about claims the tests do not assert — F-1 through F-5 all passed the pre-existing suite |
+| `npm run lint` | `docs/js/`, `test/` | Clean | Nothing about correctness; the two new `innerHTML` rules were separately proven to fire on the fault they target |
+| `python3 docs/diagrams/generate_diagrams.py` | six SVGs | Regenerates; two consecutive runs byte-stable; matched committed files before any edit | Correspondence and stability only — **not** that the figure renders legibly. Three did not. |
+| `guard_sentinels()` / `_paint()` | generator output | Both verified to raise on the exact markup that shipped | That other classes of colour fault are caught |
+| Link check | 20 page links + 10 register URLs | All 200 after F-9 | That a resolving link supports the claim beside it |
+| Rendered validation | page + six SVGs standalone, **light and dark**, 375px and 1280px | Zero console errors; no page-level horizontal scroll at either width | Behaviour in engines other than the one tested |
+| Sample execution | Option A and Option B, extracted from `index.html` | 7 tests: round-trip, 1-bit tamper, AAD mismatch, counter-block coverage, truncation, short payload, wrong MAC key | That the samples are appropriate for every deployment |
+| `python3 scripts/verify_content_decisions.py` | register | 11 decisions validated | Structure and references only, not technical correctness |
+| Demonstration drive-through | all five demos, adversarial inputs | All five report outcomes matching what they produced | That every possible input is covered |
 
-The figure is now AES-CTR alone / AES-CTR + HMAC / AES-GCM, renamed `modes-ctr-etm-gcm.svg`, with a caption stating that all three share the same counter-mode keystream and differ only in where the tag comes from — which also reinforces CD-0008's point that GCM does not replace CTR. CBC remains where it is genuinely relevant: SP 800-38A's list of five approved modes, and the padding contrast in the mechanism section. See CD-0009.
+## Open required findings
 
-**F-20 — the defensive demonstration proved only half its point.** Reader feedback noted that the demo showed the two defenses rejecting a tamper but never showed CTR *failing* to, so the reader had to hold Vector 1 in mind and construct the comparison themselves. Worse, the two runs used independently generated tampers, so nothing tied the outcomes to a single attacker action.
+None. All eleven were remediated in the authorized pass below and re-verified.
 
-The demo is now one button running the identical forgery — same profile, same target field, same XOR delta, same byte offset — against AES-CTR alone, AES-CTR + HMAC, and AES-GCM, rendering three outcome cards. Raw CTR reports the forged `role=root` it decrypted and accepted; both defenses report that nothing was returned and name the check that failed. The flipped bytes are highlighted at their true offset in each encoding, which differs by scheme (the Encrypt-then-MAC payload carries a 16-byte counter first). Backed by `compareTamperDetection` in `attacks.mjs` and three new tests, including one asserting that untampered payloads still decrypt — a defense that rejected everything would otherwise pass.
+## Remediation
 
-Both of these came from a reader rather than from the review passes, and all three of the reader findings are the same kind: individual claims were checked and correct, while the structure holding them was not challenged.
+| # | Finding | Resolution | Verified by |
+| --- | --- | --- | --- |
+| F-1 | Three SVGs emitted `@neuf`/`@neus` as literal attribute values; nine content boxes rendered as unreadable black in light theme, live on the deployed site | `box()` no longer gates the sentinel translation on both properties matching; per-property classes `.fneu`/`.sneu` let a neutral fill compose with a semantic stroke. The Vector 4 hand-written rect now calls `_paint()`. `_paint()` raises on an unmapped sentinel and `guard_sentinels()` fails generation if one survives. Dead `.neu`, `.cellA` and `.xor` rules removed. All six regenerated. | Zero sentinels in any SVG; all six rendered standalone in light and dark; both guards proven to fire |
+| F-2 | Vector 4's 3-bit option ran 8 blocks against 8 states, produced no collision, and left the previous run's "Counter Overflow Detected" banner in place | Run scales to `2 ** bits * 2`. `simulateCounterRollover` throws when `numBlocks <= states`. Verdict written on both branches, naming the actual width, block count and duplicate count. | 2-bit → 8 blocks / 4 duplicates; 3-bit → 16 blocks / 8 duplicates; regression test |
+| F-3 | Vector 1 flipped the first `"user"` in the plaintext, so `user@example.com` rewrote the email while the banner reported escalation | `flipCiphertextSubstring` takes an `anchor`; the target must sit immediately after it. Unanchored use now throws on an ambiguous target instead of guessing. UI anchors on `"role="`. | `user@example.com` now forges `role=root` with the email intact; regression tests for ambiguity, missing anchor and misplaced target |
+| F-4 | Verdict banners asserted outcomes unconditionally (Vectors 1–4 and the defensive demo) | Every verdict derived from the observed result. Vector 2 recovers using the plaintext actually encrypted and flags edited inputs; Vector 3 re-encrypts when the document changes; the defensive verdict names the schemes that actually accepted and rejected. | All five demos re-driven with the inputs that previously produced false claims |
+| F-5 | `package.json` description still read "Why AES-CTR is unsafe without authentication" | Rewritten to the CD-0008 framing | Repository-wide grep: no stale framing remains |
+| F-6 | "AEAD" never expanded (9× on the page); IND-CPA undefined | AEAD expanded at first substantive use; IND-CPA defined and the conditional nature of the Bellare & Namprempre result made explicit | Read in place |
+| F-7 | "approved KDF" used twice at normative strength with no source | Both cite SP 800-108 Rev. 1, added to Primary references with what it supports | URL verified 200; scope confirmed against the abstract |
+| F-8 | CD-0003's `approved_outcome` named a section that no longer exists | Updated to the current heading, recording the rename and that the decision is about coverage | Register validates |
+| F-9 | CD-0008 cited FIPS 198-1 at a 404 URL | Corrected to the hyphenated path the page already used, with a note | All 10 register URLs now 200 |
+| F-10 | `LATEST_REVIEW.md` claimed six captioned figures (three were not), "14/14" tests, and two different link counts | Three captions added; this record replaces the stale one | 6/6 captions confirmed in the rendered DOM |
+| F-11 | README structure list omitted `html.mjs` | Listed, with the test-suite description updated | Read in place |
 
-A regression was introduced and caught during remediation: the first fix for the GCM and CBC diagram claims pushed a third text line into the status tag below it. The rendered check caught it, the geometry was reworked to separate the property box from the tag, and the `box()` guard was added so the class cannot recur silently.
+Optional items, all taken:
 
-## Optional coverage — now taken
+| # | Item | Resolution | Verified by |
+| --- | --- | --- | --- |
+| O-1 | Figures rendered at 0.372 scale on a 375px viewport — 11px text at ~4px | Figures scroll inside their own container with a 680px minimum, the same idiom the evidence table uses | 375px: scale 0.756, smallest text ~8.3px, figures scroll internally, page does not. 1280px unchanged at 820px |
+| O-2 | Nothing enforced escape-by-default; it rested on convention | Two `no-restricted-syntax` rules reject `innerHTML` assigned from an untagged template literal, alone or concatenated | Both proven to fire on the exact fault, and to pass correctly tagged markup |
+| O-3 | The published samples were untested and could drift from the page | `test/samples.test.mjs` extracts both samples from `index.html` and executes them — 7 tests | 7/7 pass |
+| O-4 | `ui.mjs` used `1 << bits`, the idiom `attacks.mjs` warns against, and ignored the returned `maxCounterValue` | Uses the returned value | Lint and tests |
+| O-5 | Dead `.blk.safe` CSS rule | Removed, along with the dead `.cellA` and `.xor` rules in the generator | Grep across SVGs and stylesheet |
 
-Every item previously listed as optional has been closed:
+## Optional coverage
 
-- **Truncation, splicing and replay** now have their own section, with SP 800-38D Appendix D cited for replay not being inherently prevented and for the duplicate-IV / sequence-number remedies.
-- **Vectors 3 and 4 have figures** — `vector3-edit-oracle.svg` and `vector4-counter-reuse.svg`, both captioned and both self-sufficient when detached.
-- **GCM tag length** is covered in the operating-limits section: the seven permitted values, one fixed length per key, and Appendix C's warning that short tags may expose the hash subkey H.
-- **A rekeying discipline** now accompanies the counter-exhaustion bound.
+No optional coverage remains outstanding. The two representation opportunities recorded above were
+assessed and deliberately not taken: in both cases the prose is clear without a figure, and adding one
+would meet a quota rather than clarify anything.
 
-No optional coverage remains outstanding. Further additions would extend scope rather than complete it.
+## Limitations and uncertainty
 
-## Durable decisions reconciled
+- The MEGA (ePrint 2022/959) and Hongjun Wu (ePrint 2005/007) papers were confirmed to resolve but not
+  re-read from source this pass; those two evidence rows rest on CD-0004 and CD-0005.
+- Rendered checks ran in one Chromium-based engine, at 375px and 1280px, in both themes. Other engines
+  were not exercised. The previous record's dark-theme-only limitation is discharged; this narrower one
+  replaces it.
+- The published samples execute under Node's Web Crypto. They are standard Web Crypto calls and the demos
+  exercise the same APIs in-browser, but the samples themselves were not run in every target engine.
+- The deployed GitHub Pages site was confirmed to carry F-1 before remediation. It will not carry the fix
+  until this branch merges to `main`; re-check after deployment.
+- FIPS 198-1's withdrawal remains only *proposed*, and SP 800-224 remains a draft. The page states the
+  position as of this review rather than asserting a settled outcome. Both need rechecking over time.
+- This record describes an uncommitted post-remediation worktree. Re-capture the fingerprint after commit.
+- Mechanical checks do not establish factual accuracy. Every finding in this review passed the full
+  pre-existing suite: valid XML, stable checksums, exact generator correspondence, clean lint, 22 passing
+  tests. Content correctness rests on the primary-source comparisons and the rendered and driven checks
+  recorded above.
 
-| ID | Disposition |
-| --- | --- |
-| CD-0001 | Reaffirmed. Three root causes and four vectors intact in prose and taxonomy. |
-| CD-0002 | **Superseded by CD-0008.** Its "only approved mitigations" and "mandate" wording stated an authorial recommendation at normative strength and implied CTR must be replaced. Preserved as history. |
-| CD-0003 | Reaffirmed. F-15 refined the section attribution; the decision's own scoping was already accurate. |
-| CD-0004 | New — citation and CVE policy for the evidence table. |
-| CD-0005 | New — MEGA mapped to root cause 3, not Vector 1. |
-| CD-0006 | New — GCM tag and CBC propagation described in the standards' terms. |
-| CD-0007 | New — attack outcomes never rendered in the safe colour. |
-| CD-0008 | New — CTR framed as a confidentiality mode needing composition, not a mode to avoid; supersedes CD-0002. |
-| CD-0009 | New — the comparison is restricted to the options the reader can actually choose; CBC row dropped. CD-0006's CBC element no longer applies to current content, though its reasoning is preserved should CBC ever return. |
+## Closure attestation
 
-One decision, CD-0002, was superseded; it is preserved in the register with `status: superseded` and `superseded_by: CD-0008` rather than rewritten. No other decision was reversed.
+- [x] Every in-scope artifact was inventoried and read in full.
+- [x] Every material claim was entered in the ledger and dispositioned.
+- [x] Every topic received a completeness classification for every category.
+- [x] Every mandatory pass was completed separately.
+- [x] Current primary sources were used for standards-sensitive and time-sensitive claims.
+- [x] Prose, metadata, diagrams, captions, alt text, examples, summaries, navigation, and generators were reconciled.
+- [x] Every visual was reviewed as its own artifact for independent correctness, detached self-sufficiency, generator provenance, and standalone defensibility, separately from the cross-format pass.
+- [x] Applicable mechanical and rendered checks passed or their limitations are recorded.
+- [x] Applicable durable content decisions were reconciled after the independent claim review, and every reversal or supersession is justified.
+- [x] Residual exhaustion was completed after findings were assembled.
+- [x] The baseline remained frozen, or changes and repeated passes are documented.
+- [x] Required findings, optional coverage, and limitations are separated.
 
-## Known review limitations
-
-- Whether Hongjun Wu's RC4 paper also appeared in FSE 2005 proceedings could not be confirmed; the page now cites the IACR ePrint record, which is confirmed.
-- FIPS 198-1's withdrawal was still only *proposed* at the time of review, and SP 800-224 was still a draft with no final URL. Both statuses will need rechecking; the page states the position as of this review rather than asserting a settled outcome.
-- The published samples were executed under Node's Web Crypto implementation. They are standard Web Crypto calls and should behave identically in browsers, but were not separately executed in every target browser engine.
-- Rendered checks ran in one Chromium-based browser at desktop width in dark theme. Light theme was verified only by reading the CSS `prefers-color-scheme` blocks, not by rendering.
-- The deployed GitHub Pages site was not checked; validation used a local server.
-- The post-remediation state is uncommitted. This record describes a dirty worktree; re-capture after committing if a committed fingerprint is needed.
-- Mechanical checks do not establish factual accuracy. Content correctness here rests on the primary-source comparisons recorded in the ledger.
+Closure conclusion: the fresh review of `ade436e` is complete, and all eleven required findings plus five
+optional items were remediated and re-verified in the authorized pass that followed. This attestation
+covers the reviewed commit and the remediation of its findings; it is not a statement that content added
+after this record remains correct. The single most instructive finding is F-1: three figures rendered as
+unreadable black boxes for every light-theme reader, on the live site, while passing valid-XML, stable-checksum
+and exact-generator-correspondence checks — because the previous review verified the figures by reading
+their source and rendering them in one theme. F-2 through F-4 are the same shape in a different medium:
+the demonstrations were verified by running them on their default inputs, which is the one case where a
+demonstration that asserts its own success cannot be caught doing it.

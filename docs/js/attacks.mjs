@@ -59,14 +59,38 @@ export class ProfileService {
   }
 }
 
-// Flip target substring in ciphertext without knowing the key
-export function flipCiphertextSubstring(ciphertext, fullKnownPlaintext, oldSubstring, newSubstring) {
+// Flip target substring in ciphertext without knowing the key.
+//
+// `anchor` names the field the target belongs to (e.g. "role="), and the target
+// must sit immediately after it. Without an anchor the target must be unique in
+// the plaintext, because part of that plaintext is attacker-supplied: an account
+// like user@example.com puts "user" in the email as well as the role, and an
+// unanchored first-occurrence search silently flips the email instead — producing
+// a tampered token whose role never changed while the demonstration reports a
+// successful escalation. Ambiguity therefore fails loudly rather than guessing.
+export function flipCiphertextSubstring(ciphertext, fullKnownPlaintext, oldSubstring, newSubstring, anchor = null) {
   if (oldSubstring.length !== newSubstring.length) {
     throw new Error("old and new substrings must be equal length for in-place bit flipping");
   }
-  const offset = fullKnownPlaintext.indexOf(oldSubstring);
-  if (offset === -1) {
-    throw new Error(`substring "${oldSubstring}" not found in expected plaintext`);
+
+  let offset;
+  if (anchor === null) {
+    offset = fullKnownPlaintext.indexOf(oldSubstring);
+    if (offset === -1) {
+      throw new Error(`substring "${oldSubstring}" not found in expected plaintext`);
+    }
+    if (fullKnownPlaintext.indexOf(oldSubstring, offset + 1) !== -1) {
+      throw new Error(`substring "${oldSubstring}" is ambiguous in the plaintext — pass an anchor to name the target field`);
+    }
+  } else {
+    const anchorAt = fullKnownPlaintext.indexOf(anchor);
+    if (anchorAt === -1) {
+      throw new Error(`anchor "${anchor}" not found in expected plaintext`);
+    }
+    offset = anchorAt + anchor.length;
+    if (fullKnownPlaintext.slice(offset, offset + oldSubstring.length) !== oldSubstring) {
+      throw new Error(`expected "${oldSubstring}" immediately after anchor "${anchor}"`);
+    }
   }
   const tampered = new Uint8Array(ciphertext);
   const oldBytes = latin1Encode(oldSubstring);
@@ -193,6 +217,15 @@ export async function recoverPlaintextViaEditOracle(editorService) {
 export async function simulateCounterRollover(keyBytes, initialCounterBlock, counterBits = 2, numBlocks = 8) {
   const states = 2 ** counterBits;
   const maxCounterValue = states - 1;
+  // Enforced, not merely documented: a caller that widens the counter without
+  // widening the run produces a clean sequence with no collision at all, which
+  // demonstrates the opposite of this function's purpose. Fail rather than return
+  // an empty `duplicates` array that a caller may render as a successful run.
+  if (numBlocks <= states) {
+    throw new Error(
+      `numBlocks (${numBlocks}) must exceed the ${states} counter states for a ${counterBits}-bit field, or the counter never wraps`
+    );
+  }
   const blocks = [];
   const keystreamBlocks = [];
   const duplicates = [];
@@ -250,6 +283,10 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   const ctrPlaintext = latin1Decode(await aesCtrDecrypt(ctrKey, ctrTampered, ctrCounter));
   const ctr = {
     scheme: "AES-CTR alone",
+    // Whether the scheme authenticates its ciphertext at all — the one property
+    // the comparison turns on. Callers must branch on this rather than on the
+    // display name, which is prose and free to change.
+    authenticated: false,
     tamperOffset: offset,
     ciphertextHex: toHex(ctrCt),
     tamperedHex: toHex(ctrTampered),
@@ -263,7 +300,7 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   const etmMacKey = randomKey(32);
   const { payload } = await encryptThenMacEncrypt(etmEncKey, etmMacKey, latin1Encode(profile));
   const etmTampered = applyDelta(payload, BLOCK_SIZE + offset);
-  const etm = { scheme: "AES-CTR + HMAC-SHA256", tamperOffset: BLOCK_SIZE + offset, payloadHex: toHex(payload), tamperedHex: toHex(etmTampered) };
+  const etm = { scheme: "AES-CTR + HMAC-SHA256", authenticated: true, tamperOffset: BLOCK_SIZE + offset, payloadHex: toHex(payload), tamperedHex: toHex(etmTampered) };
   try {
     etm.plaintextReturned = latin1Decode(await encryptThenMacDecrypt(etmEncKey, etmMacKey, etmTampered));
     etm.detected = false;
@@ -279,7 +316,7 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   const gcmKey = randomKey(32);
   const { nonce, ciphertext: gcmCt } = await aesGcmEncrypt(gcmKey, latin1Encode(profile));
   const gcmTampered = applyDelta(gcmCt, offset);
-  const gcm = { scheme: "AES-GCM", tamperOffset: offset, nonceHex: toHex(nonce), ciphertextHex: toHex(gcmCt), tamperedHex: toHex(gcmTampered) };
+  const gcm = { scheme: "AES-GCM", authenticated: true, tamperOffset: offset, nonceHex: toHex(nonce), ciphertextHex: toHex(gcmCt), tamperedHex: toHex(gcmTampered) };
   try {
     gcm.plaintextReturned = latin1Decode(await aesGcmDecrypt(gcmKey, nonce, gcmTampered));
     gcm.detected = false;

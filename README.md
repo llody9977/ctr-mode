@@ -1,11 +1,15 @@
-# AES-CTR mode is unsafe without authentication
+# AES-CTR provides confidentiality, not integrity
 
 ![CI](https://github.com/llody9977/ctr-mode/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/llody9977/ctr-mode/actions/workflows/codeql.yml/badge.svg)
 ![Secret scan](https://github.com/llody9977/ctr-mode/actions/workflows/gitleaks.yml/badge.svg)
 ![License](https://img.shields.io/github/license/llody9977/ctr-mode)
 
-Counter (CTR) mode turns a block cipher into a synchronous stream cipher by encrypting sequential counter blocks to generate a keystream, then XORing it with plaintext: `C = P ⊕ S`. Because bitwise XOR has zero error propagation, CTR mode is completely malleable: flipping a bit in ciphertext flips the exact corresponding bit in decrypted plaintext with 100% certainty. Furthermore, reusing a counter block under the same key completely cancels the keystream (`C₁ ⊕ C₂ = P₁ ⊕ P₂`), destroying confidentiality outright.
+Counter (CTR) mode is one of the five confidentiality modes NIST approves in SP 800-38A. It turns a block cipher into a synchronous stream cipher by encrypting a sequence of counter blocks into a keystream and XORing that with the plaintext: `C = P ⊕ S`. It is **not deprecated and not discouraged** — AES-GCM's confidentiality is, in NIST's own words, "a variation of the Counter mode of operation".
+
+What CTR does not do is protect integrity, and it was never specified to. SP 800-38A Appendix D says as much: under CTR "the decryption of any ciphertext block is vulnerable to the introduction of specific bit errors into that ciphertext block *if its integrity is not protected*". Used alone where an attacker can reach the ciphertext, flipping a ciphertext bit flips exactly the corresponding plaintext bit, and reusing a counter block under one key cancels the keystream outright (`C₁ ⊕ C₂ = P₁ ⊕ P₂`).
+
+**The rule is not "never use CTR" — it is "authenticate the ciphertext".** This repository demonstrates what the missing tag costs, then shows the two correct fixes with runnable code.
 
 **[▶ Open the interactive site →](https://llody9977.github.io/ctr-mode/)** — every attack below runs live in your browser against real AES.
 
@@ -15,9 +19,14 @@ The site turns each weakness into an interactive demonstration you can drive. Th
 
 - **Vector 1 — Precision bit-flipping / privilege escalation** — flip ciphertext bits to forge a `role=root` session token from a `role=user` account with zero decryption errors and zero corruption of surrounding bytes.
 - **Vector 2 — Two-time pad & crib-dragging** — encrypt two messages under the same `(Key, Nonce)` pair; watch the keystream cancel out (`C₁ ⊕ C₂ = P₁ ⊕ P₂`) and drag natural-language candidate words across the XOR stream to recover plaintexts without the key.
-- **Vector 3 — Random-access read/write keystream extraction** — query an `edit(ciphertext, offset, new_text)` oracle with `0x00` bytes to extract the raw keystream (`0x00 ⊕ S = S`), recovering 100% of a confidential document in a single request.
-- **Vector 4 — Counter rollover & keystream collisions** — simulate small counter field bounds and watch counter overflow generate duplicate keystream blocks, creating multi-time pad vulnerabilities within the same stream.
-- **The fix** — test the same token under **AES-GCM** (AEAD) and **Encrypt-then-MAC** (AES-CTR + HMAC-SHA256): flip a single bit and watch the cryptographic authentication tag reject the ciphertext before any plaintext or role is trusted.
+- **Vector 3 — Random-access read/write keystream extraction** — submit all-zero *plaintext* to an `edit(ciphertext, offset, new_text)` oracle; the server re-encrypts it under the same key and counter and hands back `0x00 ⊕ S = S` — the raw keystream — recovering 100% of a confidential document in a single request.
+- **Vector 4 — Counter rollover & keystream collisions** — wrap a deliberately tiny counter field in software and watch identical counter blocks regenerate identical keystream, the invariant behind multi-time pad vulnerabilities within a single stream. (The simulator demonstrates the invariant; it does not overflow AES's own counter.)
+- **The fix** — test the same token under **AES-GCM** (AEAD) and **Encrypt-then-MAC** (AES-CTR + HMAC-SHA256, under two independent keys): flip a single bit and watch the authentication tag reject the ciphertext before any plaintext or role is trusted.
+
+Both fixes ship as copyable samples on the site:
+
+- **Option A — use an AEAD.** AES-GCM or ChaCha20-Poly1305: confidentiality and integrity in one primitive, tag verified before any plaintext is released. Still counter-mode encryption underneath.
+- **Option B — keep AES-CTR and add HMAC.** Encrypt-then-MAC, the ordering Bellare & Namprempre found "secure from all points of view": two independent keys, the tag covering the counter block *and* the ciphertext, verified in constant time before decrypting.
 
 ![AES-CTR has three root causes — stream-cipher malleability (bitwise XOR has zero error spread), keystream determinism (reusing nonces reproduces identical keystreams), and missing authentication (tampered ciphertexts decrypt without error). These drive four distinct attack vectors: precision bit-flipping, two-time pad crib-dragging, random-access edit extraction, and counter rollover collisions.](docs/diagrams/taxonomy.svg)
 

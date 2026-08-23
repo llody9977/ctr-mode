@@ -109,6 +109,38 @@ test("Vector 1 — Precision bit-flipping forges admin role with zero errors", a
   assert.equal(await service.fullPlaintextForToken(tampered), `email=${email}&uid=1000&role=root`);
 });
 
+test("Vector 1 — the flip is anchored to the role field, not the first match", async () => {
+  // Regression: the target substring was located with a plain indexOf, so an
+  // account whose email contains "user" captured the flip. The email was rewritten
+  // to "root@example.com", role stayed "user", and the demo still reported a
+  // successful privilege escalation.
+  const service = new ProfileService();
+  const email = "user@example.com";
+  const token = await service.issueToken(email);
+  const fullPlaintext = `email=${email}&uid=1000&role=user`;
+
+  const { tampered, offset } = flipCiphertextSubstring(token, fullPlaintext, "user", "root", "role=");
+
+  assert.equal(offset, fullPlaintext.lastIndexOf("user"), "must target the role value, not the email");
+  assert.equal(await service.roleForToken(tampered), "root");
+  assert.equal(await service.fullPlaintextForToken(tampered), `email=${email}&uid=1000&role=root`);
+});
+
+test("Vector 1 — an ambiguous target fails loudly instead of flipping the wrong bytes", async () => {
+  const service = new ProfileService();
+  const token = await service.issueToken("user@example.com");
+  const fullPlaintext = "email=user@example.com&uid=1000&role=user";
+
+  // Unanchored and ambiguous: refuse rather than guess.
+  assert.throws(() => flipCiphertextSubstring(token, fullPlaintext, "user", "root"), /ambiguous/);
+  // A missing or misplaced anchor is also an error, never a silent fallback.
+  assert.throws(() => flipCiphertextSubstring(token, fullPlaintext, "user", "root", "group="), /anchor "group=" not found/);
+  assert.throws(() => flipCiphertextSubstring(token, fullPlaintext, "root", "user", "role="), /expected "root" immediately after/);
+  // Unanchored still works where the target genuinely is unique.
+  const unique = "email=alice@example.com&uid=1000&role=user";
+  assert.doesNotThrow(() => flipCiphertextSubstring(token, unique, "user", "root"));
+});
+
 test("Vector 2 — Two-time pad keystream cancellation reveals plaintext XOR", async () => {
   const key = randomKey();
   const counter = makeCounterBlock();
@@ -174,6 +206,26 @@ test("Vector 4 — default parameters actually roll over and collide", async () 
   assert.ok(duplicates.length > 0, "defaults must produce at least one duplicate keystream block");
 });
 
+test("Vector 4 — a run too short to wrap the counter is rejected, not returned empty", async () => {
+  // Regression: the UI ran a fixed 8 blocks for every counter width. A 3-bit
+  // counter has exactly 8 states, so the run produced 8 distinct keystreams and
+  // zero duplicates — demonstrating the opposite of the point — while the verdict
+  // banner from the previous 2-bit run stayed on screen claiming a collision.
+  const key = randomKey();
+  const base = new Uint8Array(16);
+
+  await assert.rejects(() => simulateCounterRollover(key, base, 3, 8), /must exceed the 8 counter states/);
+  await assert.rejects(() => simulateCounterRollover(key, base, 2, 4), /must exceed the 4 counter states/);
+
+  // The widths the UI offers, each scaled to two full cycles as the UI now does.
+  for (const bits of [2, 3]) {
+    const numBlocks = 2 ** bits * 2;
+    const { duplicates, maxCounterValue } = await simulateCounterRollover(key, base, bits, numBlocks);
+    assert.equal(maxCounterValue, 2 ** bits - 1);
+    assert.equal(duplicates.length, 2 ** bits, `${bits}-bit counter must regenerate every keystream block once`);
+  }
+});
+
 test("Crib dragging is bounded in UTF-8 bytes, not JS characters", async () => {
   // Regression: the UI bound-checked crib length in JS characters while cribDrag
   // re-encodes to UTF-8, so a multi-byte crib slipped past the guard and threw.
@@ -215,6 +267,14 @@ test("Side-by-side — the identical forgery is undetected under CTR and rejecte
   assert.equal(ctr.roleAccepted, "root", "the forged role is accepted");
   assert.match(ctr.plaintextReturned, /role=root/);
   assert.notEqual(ctr.ciphertextHex, ctr.tamperedHex);
+
+  // The comparison's outcome must be derivable from the security property rather
+  // than from a display name, so renaming a scheme cannot change what the UI concludes.
+  assert.equal(ctr.authenticated, false, "raw CTR must be marked unauthenticated");
+  assert.equal(etm.authenticated, true);
+  assert.equal(gcm.authenticated, true);
+  assert.equal(results.filter((r) => !r.authenticated && !r.detected).length, 1);
+  assert.ok(results.filter((r) => r.authenticated).every((r) => r.detected), "every authenticated scheme must detect");
 
   // 2 and 3 — both defenses reject, and critically return NO plaintext at all.
   for (const scheme of [etm, gcm]) {

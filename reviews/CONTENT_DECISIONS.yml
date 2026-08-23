@@ -89,14 +89,14 @@ decisions:
         supports: "Uniqueness requirements and 2^32 random nonce invocation limit."
     verification_methods:
       - "Direct verification against NIST SP 800-38D §8.3 text."
-    approved_outcome: "docs/index.html includes a section titled 'Residual risk after switching to GCM'."
+    approved_outcome: "docs/index.html covers GCM nonce uniqueness and the 2^32 invocation ceiling under the heading 'Operating limits: nonces, counters, tags, and rekeying', in the subsection 'Nonce uniqueness'. The section was originally titled 'Residual risk after switching to GCM'; it was renamed and widened to cover tag length and counter exhaustion alongside nonce reuse. The decision is about the coverage, which is intact, not the heading text."
     invalidation_conditions:
       - "NIST updates SP 800-38D invocation ceiling guidelines."
     related_decisions: []
     supersedes: []
     superseded_by: null
     originated_on: "2026-08-22"
-    last_reviewed_on: "2026-08-22"
+    last_reviewed_on: "2026-08-23"
 
   - id: "CD-0004"
     title: "Cite real-world cases from primary research; attach a CVE only where one exists and matches"
@@ -264,8 +264,8 @@ decisions:
         url: "https://eprint.iacr.org/2000/025"
         supports: "Encrypt-then-MAC 'is secure from all points of view, making it a good choice for a standard'; encryption and MAC keys 'are independently chosen'; decrypt+verify is defined as verifying the tag before decrypting."
       - title: "FIPS 198-1"
-        url: "https://csrc.nist.gov/pubs/fips/198/1/final"
-        supports: "HMAC as the keyed-hash message authentication code used in the Encrypt-then-MAC sample."
+        url: "https://csrc.nist.gov/pubs/fips/198-1/final"
+        supports: "HMAC as the keyed-hash message authentication code used in the Encrypt-then-MAC sample. URL corrected 2026-08-23: this record had carried the guessed path /pubs/fips/198/1/final, which returns 404. The page itself already used the correct hyphenated form; only the register was wrong."
     verification_methods:
       - "Both published samples executed under Node against Web Crypto: round-trip, 1-bit tamper rejection, truncation rejection, and AAD-mismatch rejection all confirmed."
       - "Standards text extracted from the published PDFs and quoted rather than paraphrased from secondary sources."
@@ -316,6 +316,74 @@ decisions:
     related_decisions:
       - "CD-0006"
       - "CD-0008"
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-23"
+    last_reviewed_on: "2026-08-23"
+
+  - id: "CD-0010"
+    title: "A figure must be legible as rendered — in both themes and at mobile width"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/diagrams/generate_diagrams.py"
+        - "docs/diagrams/modes-ctr-etm-gcm.svg"
+        - "docs/diagrams/vector2-two-time-pad.svg"
+        - "docs/diagrams/vector4-counter-reuse.svg"
+        - "docs/styles.css"
+        - "docs/index.html"
+      concepts:
+        - "theme-aware SVG"
+        - "figure self-sufficiency"
+        - "rendered validation"
+    originating_feedback: "A 2026-08-23 fresh review found three committed SVGs emitting the theme sentinels @neuf and @neus as literal attribute values. fill=\"@neuf\" is not a valid SVG paint, so browsers discarded it and fell back to black, rendering nine content boxes as unreadable black rectangles in light theme. The same review measured every figure at 0.372 scale on a 375px viewport, putting 11px body text near 4px."
+    decision: "Theme sentinels resolve to per-property CSS classes and never reach the output as literal attribute values; generation fails if one does. Figures scroll inside their own container on narrow viewports rather than scaling down to illegibility. The three affected figures were regenerated."
+    rationale: "box() translated sentinels to a CSS class only when fill and stroke were both neutral, so a neutral fill combined with a semantic stroke fell through to a literal attribute — and the Vector 4 blocks bypassed box() entirely with a hand-written rect. The fault was invisible in dark theme, where a black box under light --ink text reads as deliberate, which is why a dark-only rendered check passed it and why every structural check passed it: the XML is valid, the checksum is stable, and the generator correspondence is exact. Legibility is not decoration here. The boxes lost were the three security-property boxes of the page's central comparison, the two ciphertext inputs of the two-time-pad figure, and the four counter blocks whose repetition Vector 4 exists to show. A figure whose scope line renders at 4px has also lost the qualifier that keeps it defensible when detached."
+    authoritative_sources: []
+    verification_methods:
+      - "guard_sentinels() rejects any '@' sentinel surviving into an SVG, and _paint() raises on an unmapped sentinel rather than emitting it; both were verified to fire on the exact markup that shipped."
+      - "All six SVGs loaded standalone in light and dark theme after regeneration."
+      - "Measured at a 375px viewport: figures render at 680px (scale 0.756, smallest text ~8.3px, was ~4.1px), scroll within their own container, and the page itself still does not scroll horizontally. Desktop rendering is unchanged at 820px."
+    approved_outcome: "No theme sentinel appears as a literal value in any committed SVG; generation fails if one ever does. All six figures are legible in both themes, and each carries a figcaption."
+    invalidation_conditions:
+      - "The palette mechanism changes such that sentinels are no longer used."
+      - "Figures are authored at a width that no longer needs a minimum to stay legible."
+    related_decisions:
+      - "CD-0007"
+      - "CD-0009"
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-23"
+    last_reviewed_on: "2026-08-23"
+
+  - id: "CD-0011"
+    title: "A demonstration reports what it observed, never what it expected"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/js/ui.mjs"
+        - "docs/js/attacks.mjs"
+        - "docs/index.html"
+        - "test/attacks.test.mjs"
+      concepts:
+        - "demonstration sufficiency"
+        - "verdict derivation"
+        - "attacker-supplied input"
+    originating_feedback: "The same review found every verdict banner hardcoded and rendered unconditionally, and confirmed four cases in-browser where a banner asserted an outcome the run had not produced: Vector 1 declared a privilege escalation after flipping an email instead of the role, Vector 4 declared a counter collision under a run that produced none, Vector 2 declared full recovery while displaying garbage, and Vector 3 recovered a different document from the one on screen."
+    decision: "Every verdict is derived from the result the demonstration actually produced. Where a target is ambiguous or a run cannot demonstrate its point, the code fails loudly rather than proceeding: flipCiphertextSubstring anchors on the field name and refuses an ambiguous target, and simulateCounterRollover refuses a run too short to wrap the counter."
+    rationale: "The page's whole thesis is that unauthenticated output must be verified before it is trusted. A demonstration that announces success without checking teaches the opposite, and does so in the one place a reader is most likely to believe it. The failures were not cosmetic: Vector 1's unanchored indexOf captured the first \"user\" in the plaintext, so any account like user@example.com produced a token whose role never changed while the banner reported escalation. Anchoring on \"role=\" is safe because the token sanitiser already replaces '=' in attacker-supplied email, which is the idiom compareTamperDetection and gcmTokenRoundtrip already used."
+    authoritative_sources: []
+    verification_methods:
+      - "Regression tests: an anchored flip against user@example.com forges the role and leaves the email intact; an ambiguous unanchored target throws; a counter run too short to wrap throws; both offered counter widths regenerate every keystream block once."
+      - "All five demonstrations re-exercised in-browser against the inputs that previously produced false claims, with zero console errors."
+    approved_outcome: "Vector 1 anchors on the role field; Vector 4 scales its run to the selected counter width and writes a verdict on both branches; Vector 2 recovers using the plaintext that was encrypted and flags edited inputs; Vector 3 re-encrypts when the document changes; the defensive comparison names the schemes that actually accepted and rejected the forgery."
+    invalidation_conditions:
+      - "A demonstration is added whose outcome genuinely cannot be checked in-page."
+    related_decisions:
+      - "CD-0001"
+      - "CD-0009"
     supersedes: []
     superseded_by: null
     originated_on: "2026-08-23"

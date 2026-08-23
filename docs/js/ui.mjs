@@ -23,9 +23,18 @@ function verdict(el, kind, markup) {
 const profileService = new ProfileService();
 let lastIssuedToken = null;
 let lastIssuedPlaintext = null;
+// The account the held token was actually issued for, as distinct from whatever
+// the input currently shows. Same rule as Vectors 2 and 3: the demonstration must
+// report on the account the reader is looking at, not one they have since edited away.
+let issuedEmail = null;
+
+function currentEmail() {
+  return $("v1-email").value.trim() || "alice@example.com";
+}
 
 async function issueNormalToken() {
-  const email = $("v1-email").value.trim() || "alice@example.com";
+  const email = currentEmail();
+  issuedEmail = email;
   lastIssuedPlaintext = `email=${email.replace(/[&=;]/g, "_")}&uid=1000&role=user`;
   lastIssuedToken = await profileService.issueToken(email);
   const role = await profileService.roleForToken(lastIssuedToken);
@@ -40,7 +49,9 @@ async function issueNormalToken() {
 }
 
 async function runBitFlip() {
-  if (!lastIssuedToken) {
+  // Re-issue when the account has changed, so the forged token belongs to the
+  // address on screen rather than to a previously issued one.
+  if (!lastIssuedToken || issuedEmail !== currentEmail()) {
     await issueNormalToken();
   }
   const targetRole = $("v1-role").value; // "root" or "admn" — both 4 bytes
@@ -49,9 +60,12 @@ async function runBitFlip() {
   // cannot change length, so the target must be the same size as what it replaces.
   const newSub = targetRole === "admn" ? "admn" : "root";
 
-  const { tampered, offset, delta } = flipCiphertextSubstring(lastIssuedToken, lastIssuedPlaintext, oldSub, newSub);
+  // Anchored on the role field: "user" can also occur in the attacker-supplied
+  // email (user@example.com), and an unanchored search would flip that instead.
+  const { tampered, offset, delta } = flipCiphertextSubstring(lastIssuedToken, lastIssuedPlaintext, oldSub, newSub, "role=");
   const forgedRole = await profileService.roleForToken(tampered);
   const fullPlaintext = await profileService.fullPlaintextForToken(tampered);
+  const forged = forgedRole === newSub;
 
   const tamperedHex = toHex(tampered);
   const hexStart = offset * 2;
@@ -66,11 +80,14 @@ async function runBitFlip() {
     html`<strong>Tampered Ciphertext (Delta injected at byte ${offset}):</strong><br><code>${raw(highlightedCt)}</code><br>` +
     html`<strong style="margin-top:6px;display:inline-block">Injected XOR Delta (hex):</strong> <code>${toHex(delta)}</code> ("${oldSub}" ⊕ "${newSub}")<br>` +
     html`<strong style="margin-top:6px;display:inline-block">Server Decrypted Plaintext:</strong> <code>${fullPlaintext}</code><br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Server Accepted Role:</strong> <span class="flip">${forgedRole}</span>` +
+    html`<strong style="margin-top:6px;display:inline-block">Server Accepted Role:</strong> <span class="${forged ? "flip" : "clean"}">${forgedRole}</span>` +
     html`</div>`;
 
-  verdict($("v1-verdict"), "bad",
-    html`<strong>Privilege Escalation Succeeded!</strong> Flipping 4 ciphertext bytes modified the decrypted role to <strong>${forgedRole}</strong> with zero decryption errors and zero corruption of surrounding bytes.`
+  // Derived from what the server actually returned, never asserted in advance.
+  verdict($("v1-verdict"), forged ? "bad" : "good",
+    forged
+      ? html`<strong>Privilege Escalation Succeeded!</strong> Flipping ${delta.length} ciphertext bytes modified the decrypted role to <strong>${forgedRole}</strong> with zero decryption errors and zero corruption of surrounding bytes.`
+      : html`<strong>No escalation.</strong> The server still reports role = <strong>${forgedRole}</strong>, so this tamper did not forge the target field.`
   );
 }
 
@@ -80,6 +97,23 @@ async function runBitFlip() {
 let currentXorStream = null;
 let ct1Global = null;
 let ct2Global = null;
+// What was actually encrypted, as distinct from what the inputs currently show.
+// The attacker's "known plaintext" is the message that was sent, not whatever the
+// box was edited to afterwards; conflating the two recovers garbage while the
+// demonstration reports a successful recovery.
+let encryptedP1 = null;
+let encryptedP2 = null;
+
+function twoTimePadIsStale() {
+  return encryptedP1 !== $("v2-p1").value || encryptedP2 !== $("v2-p2").value;
+}
+
+function markTwoTimePadStale() {
+  if (!currentXorStream) return;
+  $("v2-stale").textContent = twoTimePadIsStale()
+    ? "Inputs edited since encryption — press “Encrypt both” to encrypt these messages."
+    : "";
+}
 
 async function runTwoTimePadEncrypt() {
   const p1Str = $("v2-p1").value;
@@ -92,6 +126,9 @@ async function runTwoTimePadEncrypt() {
 
   ct1Global = c1;
   ct2Global = c2;
+  encryptedP1 = p1Str;
+  encryptedP2 = p2Str;
+  $("v2-stale").textContent = "";
   currentXorStream = twoTimePadXor(c1, c2);
 
   $("v2-xor-hex").textContent = toHex(currentXorStream);
@@ -127,38 +164,53 @@ function updateCribView() {
 
 function runKnownPlaintextRecover() {
   if (!currentXorStream) return;
-  const knownP1 = $("v2-p1").value;
-  const recovered = knownPlaintextRecover(ct1Global, ct2Global, utf8(knownP1));
-  $("v2-recovered-p2").textContent = utf8Decode(recovered);
-  verdict($("v2-verdict"), "bad",
-    html`<strong>Full Message 2 Recovered:</strong> Using known plaintext P₁, Message 2 was computed instantly as <code>P₂ = (C₁ ⊕ C₂) ⊕ P₁</code> without any brute-force or key search.`
+  // The known plaintext is the message that was encrypted, not the current input.
+  const recovered = utf8Decode(knownPlaintextRecover(ct1Global, ct2Global, utf8(encryptedP1)));
+  $("v2-recovered-p2").textContent = recovered;
+
+  const exact = recovered === encryptedP2;
+  verdict($("v2-verdict"), exact ? "bad" : "good",
+    exact
+      ? html`<strong>Full Message 2 Recovered:</strong> Using known plaintext P₁, Message 2 was computed instantly as <code>P₂ = (C₁ ⊕ C₂) ⊕ P₁</code> without any brute-force or key search.`
+      : html`<strong>Partial recovery.</strong> Only the ${recovered.length} bytes covered by the known P₁ were recovered; the rest of Message 2 stays hidden because the XOR stream beyond that offset has no known plaintext to cancel against.`
   );
+  markTwoTimePadStale();
 }
 
 // ===========================================================================
 // Vector 3: Random-Access Edit Oracle
 // ===========================================================================
 let documentService = null;
+// The text the oracle actually holds. The textarea is an input to encryption, not
+// a view of server state: editing it after initialisation would otherwise leave the
+// box showing one document while the attack recovers another.
+let storedDocument = null;
 
 async function initDocOracle() {
-  const secretText = $("v3-doc-text").value;
-  documentService = new DocumentEditorService(secretText);
+  storedDocument = $("v3-doc-text").value;
+  documentService = new DocumentEditorService(storedDocument);
   const ct = await documentService.init();
 
   $("v3-orig-ct").textContent = toHex(ct);
+  $("v3-keystream").textContent = "[Awaiting extraction]";
   $("v3-recovered-text").textContent = "[Awaiting keystream extraction]";
   $("v3-verdict").className = "verdict";
 }
 
 async function runDocExtraction() {
-  if (!documentService) await initDocOracle();
+  // Re-encrypt whenever the document has been edited, so the recovered plaintext
+  // is always the document the reader is looking at.
+  if (!documentService || storedDocument !== $("v3-doc-text").value) await initDocOracle();
   const { rawKeystream, recoveredText } = await recoverPlaintextViaEditOracle(documentService);
 
   $("v3-keystream").textContent = toHex(rawKeystream);
   $("v3-recovered-text").innerHTML = html`<span class="flip">${recoveredText}</span>`;
 
-  verdict($("v3-verdict"), "bad",
-    html`<strong>100% of Plaintext Recovered in a Single Request!</strong> By requesting an edit with <code>0x00</code> bytes, the oracle returned <code>0x00 ⊕ S = S</code> (raw keystream). XORing with original ciphertext produced the entire secret.`
+  const complete = recoveredText === storedDocument;
+  verdict($("v3-verdict"), complete ? "bad" : "good",
+    complete
+      ? html`<strong>100% of Plaintext Recovered in a Single Request!</strong> By requesting an edit with <code>0x00</code> bytes, the oracle returned <code>0x00 ⊕ S = S</code> (raw keystream). XORing with original ciphertext produced the entire secret.`
+      : html`<strong>Recovery incomplete.</strong> The extracted keystream did not reproduce the stored document, so this run does not demonstrate the attack.`
   );
 }
 
@@ -169,7 +221,12 @@ async function runCounterRollover() {
   const bits = parseInt($("v4-bits").value, 10);
   const key = randomKey();
   const baseCounter = new Uint8Array(BLOCK_SIZE);
-  const { blocks, duplicates } = await simulateCounterRollover(key, baseCounter, bits, 8);
+  // Scale the run to the counter width. A fixed block count wraps a 2-bit counter
+  // but exactly fills a 3-bit one, producing eight distinct keystreams and no
+  // collision at all — the opposite of what this demonstration exists to show.
+  // Two full cycles, so every keystream block is visibly regenerated once.
+  const numBlocks = 2 ** bits * 2;
+  const { blocks, duplicates, maxCounterValue } = await simulateCounterRollover(key, baseCounter, bits, numBlocks);
 
   const listHtml = blocks.map((b) => {
     const isDup = duplicates.some((d) => d.duplicateBlockIndex === b.blockIndex);
@@ -182,11 +239,14 @@ async function runCounterRollover() {
 
   $("v4-blocks-out").innerHTML = listHtml;
 
-  if (duplicates.length > 0) {
-    verdict($("v4-verdict"), "bad",
-      html`<strong>Counter Overflow Detected:</strong> With a ${bits}-bit counter (max value ${(1 << bits) - 1}), the counter wrapped, reproducing identical keystream blocks. Long streams or packet counters that wrap reuse keystream and cause two-time pad vulnerability within the same session.`
-    );
-  }
+  // Written on both branches. Leaving the previous run's banner in place let a
+  // clean sequence sit under a red "Counter Overflow Detected" verdict naming a
+  // counter width the reader had not selected.
+  verdict($("v4-verdict"), duplicates.length > 0 ? "bad" : "good",
+    duplicates.length > 0
+      ? html`<strong>Counter Overflow Detected:</strong> With a ${bits}-bit counter (max value ${maxCounterValue}), ${numBlocks} blocks exhausted the ${maxCounterValue + 1} counter states and wrapped, regenerating ${duplicates.length} identical keystream blocks. Long streams or packet counters that wrap reuse keystream and cause two-time pad vulnerability within the same session.`
+      : html`<strong>No collision in this run.</strong> ${numBlocks} blocks did not exhaust the ${maxCounterValue + 1} states of a ${bits}-bit counter, so every counter block stayed distinct.`
+  );
 }
 
 // ===========================================================================
@@ -241,12 +301,21 @@ async function runDefenceComparison() {
 
     $("def-results").innerHTML = cmp.results.map((r, i) => schemeCard(i + 1, r, deltaLen)).join("");
 
-    const detected = cmp.results.filter((r) => r.detected).length;
-    verdict($("def-verdict"), detected === 2 ? "good" : "bad",
-      html`<strong>Same attack, three outcomes.</strong> Raw AES-CTR had no tag to check, so the forged ` +
-      html`<code>role=${cmp.newRole}</code> was decrypted and accepted. Both AES-CTR + HMAC and AES-GCM ` +
-      html`rejected the identical modification before returning any plaintext. The keystream encryption is the ` +
-      html`same in all three — only the authentication differs.`
+    // Named from the actual outcomes rather than asserting the expected ones.
+    const rejected = cmp.results.filter((r) => r.detected);
+    const accepted = cmp.results.filter((r) => !r.detected);
+    const names = (rs) => rs.map((r) => r.scheme).join(" and ") || "none";
+    // Branch on the security property, not on the display name — a scheme rename
+    // would otherwise silently flip every run to "Unexpected outcome".
+    const asExpected = accepted.length === 1 && !accepted[0].authenticated && rejected.every((r) => r.authenticated);
+
+    verdict($("def-verdict"), asExpected ? "good" : "bad",
+      asExpected
+        ? html`<strong>Same attack, three outcomes.</strong> Raw AES-CTR had no tag to check, so the forged ` +
+          html`<code>role=${cmp.results[0].roleAccepted}</code> was decrypted and accepted. ${names(rejected)} ` +
+          html`rejected the identical modification before returning any plaintext. The keystream encryption is the ` +
+          html`same in all three — only the authentication differs.`
+        : html`<strong>Unexpected outcome.</strong> Accepted the forgery: ${names(accepted)}. Rejected it: ${names(rejected)}.`
     );
   } finally {
     btn.disabled = false;
@@ -266,6 +335,8 @@ addEventListener("DOMContentLoaded", () => {
   $("v2-crib-input").addEventListener("input", updateCribView);
   $("v2-crib-offset").addEventListener("input", updateCribView);
   $("v2-known-p1").addEventListener("click", runKnownPlaintextRecover);
+  $("v2-p1").addEventListener("input", markTwoTimePadStale);
+  $("v2-p2").addEventListener("input", markTwoTimePadStale);
 
   // Vector 3
   $("v3-init").addEventListener("click", initDocOracle);

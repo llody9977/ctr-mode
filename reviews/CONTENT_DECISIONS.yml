@@ -388,3 +388,61 @@ decisions:
     superseded_by: null
     originated_on: "2026-08-23"
     last_reviewed_on: "2026-08-23"
+
+  - id: "CD-0012"
+    title: "A published module exports nothing it does not use, and that is enforced by a test"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/js/crypto.mjs"
+        - "test/exports.test.mjs"
+        - "README.md"
+      concepts:
+        - "dead code in a reference implementation"
+        - "superseded framing surviving in code"
+        - "guard mechanization"
+    originating_feedback: "A review of the reopened cross-format pass found four unreferenced exports in crypto.mjs: aesCbcEncrypt, splitBlocks, blockAt and bytesEqual. aesCbcEncrypt sat under the section comment \"AES-CBC (for comparison with chaining mode)\" — the exact comparison CD-0009 had already removed from the page for comparing an option the reader cannot select. The superseded framing had outlived the decision that removed it, because the decision was applied to the prose and the figure but not to the code."
+    decision: "The four unreferenced exports are removed, along with the AES-CBC mention in the module docstring. A test (test/exports.test.mjs) fails when any export of crypto.mjs, attacks.mjs or html.mjs is referenced nowhere outside its declaration."
+    rationale: "These modules are published as a reference implementation and the writing standard treats sample code as guidance rather than illustration — readers copy it. An unreferenced export is code presented as usable that no test exercises and no reviewer re-checks. It is also how a superseded framing survives: CD-0009 was enforced in prose and in the comparison figure, but nothing checked the code, so a helper justifying the removed comparison stayed for another two reviews. ESLint cannot cover this, because no-unused-vars is module-local and an export is used from its own module's point of view."
+    authoritative_sources: []
+    verification_methods:
+      - "The guard was fault-injected with the exact removed helper: re-adding aesCbcEncrypt fails test/exports.test.mjs with the offending name, and the suite passes once it is gone (33/33)."
+      - "Reference counts taken across docs/index.html, docs/js/*.mjs and test/*.mjs before removal: aesCbcEncrypt, splitBlocks, blockAt and bytesEqual each had zero references; every other export had at least one."
+    approved_outcome: "crypto.mjs exports only symbols the page or the tests reference. The docstring no longer names AES-CBC. test/exports.test.mjs holds the line for all three published modules."
+    invalidation_conditions:
+      - "A module is added that must publish an API for external consumers rather than for this page, in which case that module needs an explicit allowlist rather than removal."
+    related_decisions:
+      - "CD-0009"
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-24"
+    last_reviewed_on: "2026-08-24"
+
+  - id: "CD-0013"
+    title: "Inventory counts are not restated in prose that nothing regenerates"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/diagrams/generate_diagrams.py"
+        - ".github/workflows/ci.yml"
+      concepts:
+        - "count drift"
+        - "generator-to-artifact provenance"
+    originating_feedback: "The generator's module docstring read \"Generate the four hand-authored theme-aware diagrams\" while DIAGRAMS held six entries and all six were embedded in the page. The count had drifted silently when figures were added, and survived a cross-format pass that ran at full capability."
+    decision: "The docstring states no count and points at DIAGRAMS as the definition of the set. Separately, a CI job regenerates the diagrams and fails if any committed SVG differs from what the generator produces."
+    rationale: "A hardcoded count in prose beside the list it counts has no mechanism keeping the two in step, so it goes stale on the next edit and is only caught by someone happening to compare them. Removing the number eliminates the fault class rather than guarding it. The CI job addresses the adjacent risk the count masked: a committed artifact drifting from its generator passes every syntax, link and checksum check, so correspondence has to be re-established by execution rather than assumed."
+    authoritative_sources: []
+    verification_methods:
+      - "The CI step was fault-injected in both directions: a hand-edited SVG and a generator edit left unregenerated each make `git diff --exit-code -- 'docs/diagrams/*.svg'` fail; a clean tree passes."
+      - "All six SVGs regenerate byte-identical to the committed files."
+    approved_outcome: "No count appears in the generator docstring. The CI `figures` job holds generator-to-artifact correspondence on every push and pull request."
+    invalidation_conditions:
+      - "The diagrams stop being generated from a committed generator, in which case correspondence must be established some other way and the CI job replaced rather than dropped."
+    related_decisions:
+      - "CD-0010"
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-24"
+    last_reviewed_on: "2026-08-24"

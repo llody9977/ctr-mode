@@ -262,6 +262,14 @@ export async function simulateCounterRollover(keyBytes, initialCounterBlock, cou
 // Run the identical forgery against all three options so the only variable is
 // what authenticates the ciphertext. Same profile, same target field, same XOR
 // delta, same byte offset — only the outcome differs.
+//
+// All three therefore encrypt under a 256-bit key. Key size cannot change the
+// outcome here — malleability is a property of the mode, not the key length —
+// but leaving CTR on AES-128 while GCM ran AES-256 made "the only variable is
+// the authentication" literally untrue, and a demonstration that holds all but
+// one variable constant has to actually do it.
+const COMPARISON_KEY_BYTES = 32;
+
 export async function compareTamperDetection(email, oldRole = "user", newRole = "root") {
   if (oldRole.length !== newRole.length) {
     throw new Error("target roles must be equal length — CTR bit-flipping cannot change length");
@@ -276,7 +284,7 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   };
 
   // 1 — Raw AES-CTR. Nothing authenticates the ciphertext.
-  const ctrKey = randomKey();
+  const ctrKey = randomKey(COMPARISON_KEY_BYTES);
   const ctrCounter = makeCounterBlock();
   const { ciphertext: ctrCt } = await aesCtrEncrypt(ctrKey, latin1Encode(profile), ctrCounter);
   const ctrTampered = applyDelta(ctrCt, offset);
@@ -296,7 +304,7 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   };
 
   // 2 — Encrypt-then-MAC. Payload is counter ‖ ciphertext ‖ tag.
-  const etmEncKey = randomKey(16);
+  const etmEncKey = randomKey(COMPARISON_KEY_BYTES);
   const etmMacKey = randomKey(32);
   const { payload } = await encryptThenMacEncrypt(etmEncKey, etmMacKey, latin1Encode(profile));
   const etmTampered = applyDelta(payload, BLOCK_SIZE + offset);
@@ -313,7 +321,7 @@ export async function compareTamperDetection(email, oldRole = "user", newRole = 
   }
 
   // 3 — AES-GCM. Web Crypto returns ciphertext ‖ tag, so the offset is unchanged.
-  const gcmKey = randomKey(32);
+  const gcmKey = randomKey(COMPARISON_KEY_BYTES);
   const { nonce, ciphertext: gcmCt } = await aesGcmEncrypt(gcmKey, latin1Encode(profile));
   const gcmTampered = applyDelta(gcmCt, offset);
   const gcm = { scheme: "AES-GCM", authenticated: true, tamperOffset: offset, nonceHex: toHex(nonce), ciphertextHex: toHex(gcmCt), tamperedHex: toHex(gcmTampered) };

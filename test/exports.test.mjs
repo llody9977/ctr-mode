@@ -4,8 +4,8 @@
 // that nothing references is code presented as usable that the test suite never
 // exercises and no reviewer re-checks — and it is how a superseded framing survives
 // a decision that removed it (an AES-CBC helper kept "for comparison with chaining
-// mode" outlived the comparison itself, which CD-0009 had already removed from the
-// page for comparing an option the reader cannot select).
+// mode" outlived the comparison itself, which had already been cut from the page
+// for pitting CTR against an option the reader cannot actually select).
 //
 // Lint does not cover this: `no-unused-vars` is module-local and an export is, by
 // definition, used from the module's own point of view.

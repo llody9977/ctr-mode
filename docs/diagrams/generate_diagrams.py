@@ -186,7 +186,10 @@ def d1():
     b.append(moderow(
         100, "AES-CTR alone",
         "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.\nNothing authenticates C, so tampering decrypts cleanly.",
-        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
+        # "C ⊕ Δ = P ⊕ Δ" would be false: the left side is a ciphertext value and
+        # the right a plaintext one, and they differ by the keystream. The relation
+        # holds under decryption, so say so — as taxonomy.svg already does.
+        "Malleable: C[i] ⊕ Δ decrypts to\nP[i] ⊕ Δ — no error spread\nReused nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
         RED, "⚠ Confidentiality only — needs a MAC"
     ))
     b.append(moderow(
@@ -307,7 +310,7 @@ def d4():
     b.append(box(50, 270, 380, 56, "Known Plaintext:\nP₂ = (C₁ ⊕ C₂) ⊕ P₁\nInstant recovery of full P₂ if P₁ is known", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
     b.append(box(460, 270, 380, 56, "Statistical Crib Dragging:\nDrag natural language words ('the', 'http')\nReadable text appears at matching offsets", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
 
-    b.append(text(W / 2, 422, "Scope: demonstration of the two-time pad break in attacks.mjs and test/attacks.test.mjs.", size=10.5, fill=MUTED))
+    b.append(text(W / 2, 422, "Scope: educational demonstration of the two-time pad break; runs locally in attacks.mjs and test/attacks.test.mjs.", size=10.5, fill=MUTED))
     return svg(W, 436, "Vector 2 — Two-Time Pad Keystream Reuse", "".join(b),
                subtitle="reusing a nonce destroys confidentiality by collapsing ciphertexts into plaintext XOR")
 
@@ -364,7 +367,95 @@ def d6():
     return svg(W, 340, "Vector 4 — Counter Reuse Regenerates Keystream", "".join(b),
                subtitle="a counter field too small for the traffic repeats counter blocks, and repeated counter blocks repeat keystream")
 
-DIAGRAMS = [("modes-ctr-etm-gcm", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4), ("vector3-edit-oracle", d5), ("vector4-counter-reuse", d6)]
+# ---------------- Diagram 7: the standards trajectory ----------------
+# Prose can state that counter mode survived the move to AEAD, but the shape of
+# the argument is chronological — approval, adoption inside AEAD, the AEAD-only
+# cut, then a review that keeps the mode while naming what would retire it. A
+# dated axis carries that in one read; three paragraphs do not.
+def d7():
+    b = []
+    axis_y = 176
+    # (date, headline, detail, colour, above?) — every date verified against the
+    # publication itself or its CSRC listing, not against recollection.
+    events = [
+        ("Dec 2001", "SP 800-38A", "CTR approved, one of\nfive confidentiality modes", NAVY, True),
+        ("Jan 2004", "RFC 3686", "AES-CTR in IPsec ESP;\n32-bit block counter", NAVY, False),
+        ("Nov 2007", "SP 800-38D", "GCM = counter mode\n+ GHASH tag", BLUE, True),
+        ("Aug 2018", "TLS 1.3", "AEAD only — and all five\nsuites are counter mode", GREEN, False),
+        ("Apr 2023", "Revision decided", "SP 800-38A to gain\nauthentication guidance", AMBER, True),
+        ("Sep 2024", "IR 8459", "“not yet deprecating” —\nno alternative standardised", AMBER, False),
+        ("2025 →", "Accordions", "SP 800-197 series: the\nnamed condition to retire", GRAY, True),
+    ]
+    n = len(events)
+    x0, x1 = 105, 795
+    step = (x1 - x0) / (n - 1)
+
+    b.append(f'<line x1="60" y1="{axis_y}" x2="840" y2="{axis_y}" class="arw" stroke-width="2" marker-end="url(#arw)"/>')
+
+    for i, (date, head, detail, colour, above) in enumerate(events):
+        cx = x0 + i * step
+        bw, bh = 168, 62
+        by = axis_y - 26 - bh if above else axis_y + 26
+        b.append(f'<circle cx="{cx}" cy="{axis_y}" r="5" fill="{colour}"/>')
+        tick_y = by + bh if above else by
+        b.append(f'<line x1="{cx}" y1="{axis_y}" x2="{cx}" y2="{tick_y}" stroke="{colour}" stroke-width="1.5"/>')
+        b.append(box(cx - bw / 2, by, bw, bh, detail, fill=NEU_F, stroke=colour, tc=INK, size=10.5, weight="400", lh=13))
+        # Date sits on the axis side of the marker so the eye reads date then event.
+        label_y = axis_y - 12 if not above else axis_y + 20
+        b.append(text(cx, label_y, f"{date}  ·  {head}", size=10.5, fill=colour, weight="700"))
+
+    b.append(text(W / 2, 352, "Counter mode was never removed — what was removed is using it without a tag. "
+                              "Every step right of 2018 keeps the keystream and adds authentication.",
+                  size=11, fill=INK, weight="600"))
+    b.append(text(W / 2, 374, "Scope: educational summary of published NIST and IETF status as of August 2026; "
+                              "dates from each publication or its CSRC listing. Not legal or compliance advice.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 390, "How counter mode came through the move to authenticated encryption", "".join(b),
+               subtitle="approval, adoption inside AEAD, the AEAD-only cut, and the condition NIST named for retiring the mode")
+
+# ---------------- Diagram 8: the counter block as a capacity budget ----------------
+# The 96/32 split is stated twice in prose and once in a code comment, each time
+# as a sentence. It is really an allocation: bits spent on the nonce cannot be
+# spent on the counter, and each side buys a different limit. A bar shows the
+# trade directly, and shows why the demo helper's 64/64 is a different budget.
+def d8():
+    b = []
+    bar_x, bar_w = 60, 780
+
+    def split(y, nonce_bits, ctr_bits, title, nonce_note, ctr_note, accent):
+        o = [text(bar_x, y - 10, title, size=12, fill=INK, anchor="start", weight="700")]
+        nw = bar_w * nonce_bits / 128
+        o.append(box(bar_x, y, nw, 44, f"Nonce — {nonce_bits} bits", fill=NEU_F, stroke=accent, tc=INK, size=12, mono=True))
+        o.append(box(bar_x + nw, y, bar_w - nw, 44, f"Counter — {ctr_bits} bits", fill=NEU_F, stroke=accent, tc=INK, size=12, mono=True))
+        o.append(text(bar_x + nw / 2, y + 62, nonce_note, size=10.5, fill=MUTED, lh=13))
+        o.append(text(bar_x + nw + (bar_w - nw) / 2, y + 62, ctr_note, size=10.5, fill=MUTED, lh=13))
+        return "".join(o)
+
+    b.append(text(W / 2, 74, "128 bits, allocated once. Bits given to the nonce are taken from the counter.",
+                  size=11.5, fill=INK, weight="600"))
+
+    b.append(split(
+        104, 96, 32, "Production split — what the page's samples use, and RFC 3686's shape",
+        "96 random bits keep the chance of a repeat\nbelow 2⁻³² out to about 2³² messages",
+        "2³² blocks from zero = 64 GiB in one message\n(RFC 3686 starts at 1, so 2³²−1 = 68,719,476,720 octets)",
+        BLUE))
+
+    b.append(split(
+        238, 64, 64, "This repository's demo helper — deliberately different",
+        "64 bits is too narrow for random nonces\nat scale; every demo run takes a fresh key",
+        "Far more counter than any demo needs;\nthe width is not the point being taught",
+        GRAY))
+
+    b.append(text(W / 2, 356, "Neither split adds integrity. The budget governs how much one key may encrypt "
+                              "before a counter block repeats — a tag is still required on top.",
+                  size=11, fill=INK, weight="600"))
+    b.append(text(W / 2, 378, "Scope: educational illustration of counter-block allocation; limits per NIST SP 800-38D §8 "
+                              "and RFC 3686 §4. Defensive use.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 394, "The counter block is a capacity budget", "".join(b),
+               subtitle="what the nonce buys, what the counter buys, and why the demo helper splits it differently")
+
+DIAGRAMS = [("modes-ctr-etm-gcm", d1), ("taxonomy", d2), ("vector1-bit-flipping", d3), ("vector2-two-time-pad", d4), ("vector3-edit-oracle", d5), ("vector4-counter-reuse", d6), ("standards-timeline", d7), ("counter-block-split", d8)]
 
 # Guarded so the helpers can be imported (e.g. to unit-test the layout guards)
 # without the import writing files as a side effect.

@@ -186,7 +186,10 @@ def d1():
     b.append(moderow(
         100, "AES-CTR alone",
         "Encrypts (Nonce ‖ counter) to produce keystream S.\nCiphertext is C = P ⊕ S. No padding needed.\nNothing authenticates C, so tampering decrypts cleanly.",
-        "Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ\nReused nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
+        # "C ⊕ Δ = P ⊕ Δ" would be false: the left side is a ciphertext value and
+        # the right a plaintext one, and they differ by the keystream. The relation
+        # holds under decryption, so say so — as taxonomy.svg already does.
+        "Malleable: C[i] ⊕ Δ decrypts to\nP[i] ⊕ Δ — no error spread\nReused nonce ⇒ C₁ ⊕ C₂ = P₁ ⊕ P₂",
         RED, "⚠ Confidentiality only — needs a MAC"
     ))
     b.append(moderow(
@@ -307,7 +310,7 @@ def d4():
     b.append(box(50, 270, 380, 56, "Known Plaintext:\nP₂ = (C₁ ⊕ C₂) ⊕ P₁\nInstant recovery of full P₂ if P₁ is known", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
     b.append(box(460, 270, 380, 56, "Statistical Crib Dragging:\nDrag natural language words ('the', 'http')\nReadable text appears at matching offsets", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
 
-    b.append(text(W / 2, 422, "Scope: demonstration of the two-time pad break in attacks.mjs and test/attacks.test.mjs.", size=10.5, fill=MUTED))
+    b.append(text(W / 2, 422, "Scope: educational demonstration of the two-time pad break; runs locally in attacks.mjs and test/attacks.test.mjs.", size=10.5, fill=MUTED))
     return svg(W, 436, "Vector 2 — Two-Time Pad Keystream Reuse", "".join(b),
                subtitle="reusing a nonce destroys confidentiality by collapsing ciphertexts into plaintext XOR")
 

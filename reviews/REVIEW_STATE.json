@@ -1,7 +1,7 @@
 {
   "last_review": {
-    "branch": "fix/figure-rendering-and-demo-verdicts",
-    "commit": "a91904768a4c74447ff3f48a657d50c59e73dc52",
+    "branch": "review/dead-exports-and-figure-ci",
+    "commit": "a8161730f3da4fd51a9bbbf8d151b34fb33906e5",
     "date": "2026-08-24",
     "effort": "high",
     "model": "claude-opus-5"
@@ -9,23 +9,23 @@
   "passes": {
     "adversarial-claims": {
       "effort": "high",
-      "input_fingerprint_sha256": "d0a068d3979cd5fd175504b076e6e9ad09ed059bd6ec7e78c23973e97f4818d6",
+      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
       "model": "claude-opus-5",
-      "verdict": "clean",
+      "verdict": "findings",
       "verified_on": "2026-08-24",
       "version": 1
     },
     "argument-integrity": {
       "effort": "high",
-      "input_fingerprint_sha256": "d0a068d3979cd5fd175504b076e6e9ad09ed059bd6ec7e78c23973e97f4818d6",
+      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
       "model": "claude-opus-5",
-      "verdict": "clean",
+      "verdict": "findings",
       "verified_on": "2026-08-24",
       "version": 1
     },
     "cross-format": {
       "effort": "high",
-      "input_fingerprint_sha256": "8318ff2e7658f28592c1af414a047d257caf844049184bc614de483f1b7361f4",
+      "input_fingerprint_sha256": "a9089b628823dac2e6a207b18a92ffcb473095e2fe499252ceeb0a42b55ef88d",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -33,7 +33,7 @@
     },
     "cross-page": {
       "effort": "high",
-      "input_fingerprint_sha256": "31d7456707440502ba626a6c178226810f81c181eb8f2949de13cf7796bba79b",
+      "input_fingerprint_sha256": "783f5cb640261a88beae6b35275409605d8a36fdd65109f637f4cfb9205f6dd0",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -41,7 +41,7 @@
     },
     "decision-reconciliation": {
       "effort": "high",
-      "input_fingerprint_sha256": "4d044da16057991d353503fbce3e52d3efa22ce50dfa108801309c84c1eeda10",
+      "input_fingerprint_sha256": "46a33a74c6eb94d59a2b788fc4dfa148728a61c1f90ae38188ec31dd1a5821c5",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -49,7 +49,7 @@
     },
     "evidence-authority": {
       "effort": "high",
-      "input_fingerprint_sha256": "b48a198e9dbd6f466e9940f6e40f0de25721a7a18b1c25d9fbefae71f838f383",
+      "input_fingerprint_sha256": "ccfd9d8ed9e4f71c38315d2690414fe414aee8246c023caee55879874e4a9a10",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -57,7 +57,7 @@
     },
     "executable-demonstration": {
       "effort": "high",
-      "input_fingerprint_sha256": "3c2d6706644848a6991a4d8a2f853cba06e9ac50cb3de87d4cd2ffdc4c66aa15",
+      "input_fingerprint_sha256": "e0f5e734a1e5494efb5e2124d3fad34fee2a80912ea60b542b962059343fb215",
       "model": "claude-opus-5",
       "verdict": "clean",
       "verified_on": "2026-08-24",
@@ -65,7 +65,7 @@
     },
     "factual-correctness": {
       "effort": "high",
-      "input_fingerprint_sha256": "2e33a58b239c958f5215f510c39898cecacb41aa733257ad9f991b7405f0f797",
+      "input_fingerprint_sha256": "1f5a7f91d20242413c32578e3a113e6848615767f456c0ed000bda47eee40d92",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -73,7 +73,7 @@
     },
     "terminology-taxonomy": {
       "effort": "high",
-      "input_fingerprint_sha256": "d0a068d3979cd5fd175504b076e6e9ad09ed059bd6ec7e78c23973e97f4818d6",
+      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -81,17 +81,17 @@
     },
     "topic-completeness": {
       "effort": "high",
-      "input_fingerprint_sha256": "d0a068d3979cd5fd175504b076e6e9ad09ed059bd6ec7e78c23973e97f4818d6",
+      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
       "model": "claude-opus-5",
-      "verdict": "clean",
+      "verdict": "findings",
       "verified_on": "2026-08-24",
       "version": 1
     },
     "visual-content": {
       "effort": "high",
-      "input_fingerprint_sha256": "6ab64cec51409177cf19e5dad372bfcc9958796401db8d4dcd82ef62f872aaa4",
+      "input_fingerprint_sha256": "890440874e6bc62cef991f238c10de58100c5dc6fb55bd2bf8c8a0b4e586452e",
       "model": "claude-opus-5",
-      "verdict": "clean",
+      "verdict": "findings",
       "verified_on": "2026-08-24",
       "version": 2
     }

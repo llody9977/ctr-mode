@@ -5,11 +5,13 @@
 ![Secret scan](https://github.com/llody9977/ctr-mode/actions/workflows/gitleaks.yml/badge.svg)
 ![License](https://img.shields.io/github/license/llody9977/ctr-mode)
 
-Counter (CTR) mode is one of the five confidentiality modes NIST approves in SP 800-38A. It turns a block cipher into a synchronous stream cipher by encrypting a sequence of counter blocks into a keystream and XORing that with the plaintext: `C = P ⊕ S`. It is **not deprecated and not discouraged** — AES-GCM's confidentiality is, in NIST's own words, "a variation of the Counter mode of operation".
+Counter (CTR) mode is one of the five confidentiality modes NIST approves in SP 800-38A. It turns a block cipher into a synchronous stream cipher by encrypting a sequence of counter blocks into a keystream and XORing that with the plaintext: `C = P ⊕ S`. It is **not deprecated** — NIST's September 2024 review of the SP 800-38 series ([IR 8459](https://csrc.nist.gov/pubs/ir/8459/final)) recommended "not yet deprecating" these modes — and AES-GCM's confidentiality is, in NIST's own words, "a variation of the Counter mode of operation".
 
 What CTR does not do is protect integrity, and it was never specified to. SP 800-38A Appendix D says as much: under CTR "the decryption of any ciphertext block is vulnerable to the introduction of specific bit errors into that ciphertext block *if its integrity is not protected*". Used alone where an attacker can reach the ciphertext, flipping a ciphertext bit flips exactly the corresponding plaintext bit, and reusing a counter block under one key cancels the keystream outright (`C₁ ⊕ C₂ = P₁ ⊕ P₂`).
 
 **The rule is not "never use CTR" — it is "authenticate the ciphertext".** This repository demonstrates what the missing tag costs, then shows the two correct fixes with runnable code.
+
+If you have read that TLS 1.3 dropped counter mode, it is the other way round: TLS 1.3 dropped *unauthenticated* modes, and all five of its cipher suites are still a counter-driven keystream with a tag attached — AES-GCM and AES-CCM are both counter mode plus a MAC, and ChaCha20-Poly1305 is the same shape from a different primitive. The site's [Where the standards are heading](https://llody9977.github.io/ctr-mode/#standards-direction) section sets out the evidence, including what NIST has said would have to change before it deprecates these modes.
 
 **[▶ Open the interactive site →](https://llody9977.github.io/ctr-mode/)** — every attack below runs live in your browser against real AES.
 
@@ -35,8 +37,8 @@ Both fixes ship as copyable samples on the site:
 - [`docs/`](docs/) — the GitHub Pages site and educational write-up: [`index.html`](docs/index.html), [`styles.css`](docs/styles.css), and theme-aware SVG [`diagrams/`](docs/diagrams/).
 - [`docs/js/`](docs/js/) — the cryptographic and attack implementation: [`crypto.mjs`](docs/js/crypto.mjs) (AES-CTR, AES-GCM, Encrypt-then-MAC) and [`attacks.mjs`](docs/js/attacks.mjs) (the four attack vectors), plus [`ui.mjs`](docs/js/ui.mjs) which wires them to the interactive page and [`html.mjs`](docs/js/html.mjs), a tagged template that escapes every interpolated value by default.
 - [`test/`](test/) — a Node test suite (`node --test`) verifying all attack vectors and defensive controls against the NIST SP 800-38A AES-128-CTR and RFC 3686 test vectors, the escape-by-default HTML construction, the two defensive code samples published on the site, and a guard against unreferenced exports.
-- [`reviews/`](reviews/) — durable content decisions ledger and review audit trail ([`CONTENT_DECISIONS.yml`](reviews/CONTENT_DECISIONS.yml), [`LATEST_REVIEW.md`](reviews/LATEST_REVIEW.md)).
-- [`scripts/`](scripts/) — review tooling ([`review_passes.py`](scripts/review_passes.py), which decides from repository evidence which review passes are stale, plus [`verify_content_decisions.py`](scripts/verify_content_decisions.py) and [`capture_review_state.py`](scripts/capture_review_state.py)).
+- [`reviews/`](reviews/) — the review audit trail. [`LATEST_REVIEW.md`](reviews/LATEST_REVIEW.md) is the current review record, overwritten each review so git holds the series; [`CONTENT_DECISIONS.yml`](reviews/CONTENT_DECISIONS.yml) is the durable ledger of why content choices were made, so a later review reaffirms or supersedes them rather than re-arguing them; `REVIEW_STATE.json` is the pass router's machine-readable input.
+- [`scripts/`](scripts/) — tooling for auditing this content. [`review_passes.py`](scripts/review_passes.py) decides from repository evidence which review passes are stale; [`capture_review_state.py`](scripts/capture_review_state.py) freezes the reviewed commit, scope and content fingerprint; [`verify_content_decisions.py`](scripts/verify_content_decisions.py) validates the decision register.
 
 ## Develop
 

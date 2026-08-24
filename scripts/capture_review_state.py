@@ -62,6 +62,8 @@ def resolve_scope(root: Path, requested: list[str]) -> list[Path]:
             selected.update(path for path in available if candidate in path.parents)
             continue
         if candidate in available_set:
+            # Tracked in the index but deleted from the working tree — still a
+            # legitimate scope target; capture() records it with status "deleted".
             selected.add(candidate)
             continue
         raise ValueError(f"scope does not exist: {raw_scope}")
@@ -84,6 +86,9 @@ def capture(root: Path, files: list[Path], requested: list[str]) -> dict[str, ob
     for path in files:
         relative = path.relative_to(root).as_posix()
         if not path.is_file():
+            # Tracked in the git index but removed from the working tree (an
+            # unstaged `git rm` / manual delete). Record the deletion itself as
+            # part of the frozen baseline instead of aborting the whole capture.
             entries.append({"path": relative, "status": "deleted"})
             aggregate.update(relative.encode("utf-8"))
             aggregate.update(b"\0")
@@ -99,8 +104,16 @@ def capture(root: Path, files: list[Path], requested: list[str]) -> dict[str, ob
         aggregate.update(b"\0")
 
     status = git(root, "status", "--porcelain=v1", "--untracked-files=all")
-    head = git(root, "rev-parse", "HEAD") if subprocess.run(["git", "rev-parse", "--verify", "HEAD"], cwd=root, capture_output=True).returncode == 0 else "INITIAL"
-    branch = git(root, "branch", "--show-current") or "main"
+    # A repository with no commits yet has no HEAD to resolve. Record the baseline
+    # as INITIAL rather than aborting the whole capture — a first review of an
+    # uncommitted project is a legitimate frozen state.
+    has_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD"], cwd=root, capture_output=True
+    ).returncode == 0
+    head = git(root, "rev-parse", "HEAD") if has_head else "INITIAL"
+    # An empty `--show-current` means detached HEAD, not the default branch. Naming
+    # it "main" would put a false branch into the frozen baseline record.
+    branch = git(root, "branch", "--show-current") or "DETACHED"
     scoped_fingerprint = aggregate.hexdigest()
     state_material = "\n".join((head, branch, status, scoped_fingerprint))
     state_id = hashlib.sha256(state_material.encode("utf-8")).hexdigest()

@@ -20,6 +20,22 @@ jobs:
       - name: Test
         run: node --test   # no dependencies; the tests import only the demo modules
 
+  figures:
+    # A committed SVG can drift silently from the generator that claims to produce
+    # it: a code change that is never regenerated, or a hand-edited artifact, passes
+    # every syntax and link check. Regenerate and fail on any diff, so the figures on
+    # the page are always the ones this generator actually produces.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Regenerate diagrams
+        run: python3 docs/diagrams/generate_diagrams.py   # stdlib only; no dependencies
+      - name: Fail if the committed SVGs are not what the generator produces
+        run: git diff --exit-code -- 'docs/diagrams/*.svg'
+
   lint:
     runs-on: ubuntu-latest
     steps:

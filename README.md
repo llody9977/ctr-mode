@@ -34,9 +34,9 @@ Both fixes ship as copyable samples on the site:
 
 - [`docs/`](docs/) — the GitHub Pages site and educational write-up: [`index.html`](docs/index.html), [`styles.css`](docs/styles.css), and theme-aware SVG [`diagrams/`](docs/diagrams/).
 - [`docs/js/`](docs/js/) — the cryptographic and attack implementation: [`crypto.mjs`](docs/js/crypto.mjs) (AES-CTR, AES-GCM, Encrypt-then-MAC) and [`attacks.mjs`](docs/js/attacks.mjs) (the four attack vectors), plus [`ui.mjs`](docs/js/ui.mjs) which wires them to the interactive page and [`html.mjs`](docs/js/html.mjs), a tagged template that escapes every interpolated value by default.
-- [`test/`](test/) — a Node test suite (`node --test`) verifying all attack vectors and defensive controls against the NIST SP 800-38A AES-128-CTR and RFC 3686 test vectors, the escape-by-default HTML construction, and the two defensive code samples published on the site.
+- [`test/`](test/) — a Node test suite (`node --test`) verifying all attack vectors and defensive controls against the NIST SP 800-38A AES-128-CTR and RFC 3686 test vectors, the escape-by-default HTML construction, the two defensive code samples published on the site, and a guard against unreferenced exports.
 - [`reviews/`](reviews/) — durable content decisions ledger and review audit trail ([`CONTENT_DECISIONS.yml`](reviews/CONTENT_DECISIONS.yml), [`LATEST_REVIEW.md`](reviews/LATEST_REVIEW.md)).
-- [`scripts/`](scripts/) — verification tooling ([`verify_content_decisions.py`](scripts/verify_content_decisions.py), [`capture_review_state.py`](scripts/capture_review_state.py)).
+- [`scripts/`](scripts/) — review tooling ([`review_passes.py`](scripts/review_passes.py), which decides from repository evidence which review passes are stale, plus [`verify_content_decisions.py`](scripts/verify_content_decisions.py) and [`capture_review_state.py`](scripts/capture_review_state.py)).
 
 ## Develop
 

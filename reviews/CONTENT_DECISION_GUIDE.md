@@ -27,7 +27,7 @@ Do not create a record for spelling, punctuation, formatting, or other copyedits
 4. Query the register by file and concept:
 
    ```sh
-   python3 scripts/verify_content_decisions.py --file docs/index.html
+   python3 scripts/verify_content_decisions.py --file docs/example.md
    ```
 
 5. Mark every applicable record as **reaffirmed**, **not applicable**, **reopened**, or **superseded** in the review record.

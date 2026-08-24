@@ -1,6 +1,6 @@
 // AES and cryptographic helpers for CTR mode weakness demonstrations.
 //
-// Web Crypto API (crypto.subtle) natively supports AES-CTR, AES-CBC, AES-GCM, and HMAC.
+// Web Crypto API (crypto.subtle) natively supports AES-CTR, AES-GCM, and HMAC.
 // In CTR mode, a counter block sequence is encrypted with AES to produce a keystream,
 // which is then XORed with the plaintext: C = P XOR E_K(T).
 //
@@ -31,25 +31,6 @@ export function concat(...arrays) {
     o += a.length;
   }
   return out;
-}
-
-export function splitBlocks(data, blockSize = BLOCK_SIZE) {
-  const out = [];
-  for (let i = 0; i < data.length; i += blockSize) {
-    out.push(data.slice(i, i + blockSize));
-  }
-  return out;
-}
-
-export function blockAt(data, index, blockSize = BLOCK_SIZE) {
-  return data.slice(index * blockSize, (index + 1) * blockSize);
-}
-
-export function bytesEqual(a, b) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
 }
 
 export function xorBytes(a, b) {
@@ -97,14 +78,6 @@ export async function aesCtrKeystream(keyBytes, length, counterBlock, counterLen
   const zeros = new Uint8Array(length);
   const { ciphertext } = await aesCtrEncrypt(keyBytes, zeros, counterBlock, counterLength);
   return ciphertext;
-}
-
-// ---- AES-CBC (for comparison with chaining mode) ----
-export async function aesCbcEncrypt(keyBytes, plaintext, iv = null) {
-  iv = iv ?? randomBytes(BLOCK_SIZE);
-  const k = await subtle.importKey("raw", keyBytes, { name: "AES-CBC" }, false, ["encrypt"]);
-  const ct = new Uint8Array(await subtle.encrypt({ name: "AES-CBC", iv }, k, plaintext));
-  return { iv, ciphertext: ct };
 }
 
 // ---- AES-GCM (Defensive AEAD standard) ----

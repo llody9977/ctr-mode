@@ -1,4 +1,8 @@
-"""Generate the four hand-authored theme-aware diagrams embedded in docs/index.html.
+"""Generate the hand-authored theme-aware diagrams embedded in docs/index.html.
+
+The set is defined by `DIAGRAMS` at the bottom of this file — deliberately not
+restated as a count here, because a hardcoded number silently goes stale the
+next time a figure is added or removed.
 
 The SVGs are theme-aware: theme-dependent colors (card/panel backgrounds, ink and
 muted text, neutral fills, arrows) are CSS variables with a `prefers-color-scheme:

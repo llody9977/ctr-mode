@@ -30,7 +30,12 @@ const DIAGRAMS = new URL("../docs/diagrams/", import.meta.url);
 function figureText(svg) {
   return [...svg.matchAll(/<(?:text|tspan)\b[^>]*>([^<]*)(?=<)/g)]
     .map((m) => m[1])
-    .map((s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"))
+    // `&amp;` is unescaped LAST. Doing it first turns the escaped literal
+    // "&amp;lt;" into "&lt;", which the next replacement then turns into "<" —
+    // a double-unescape that invents markup the figure never contained. Same
+    // rule as docs/js/html.mjs, mirrored: escaping does the meta-character
+    // first, unescaping does it last.
+    .map((s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"))
     .filter((s) => s.trim());
 }
 
@@ -69,6 +74,17 @@ function unsoundEquations(line) {
   }
   return bad;
 }
+
+test("figure text is unescaped without double-unescaping", () => {
+  // The meta-character must come last. With "&amp;" unescaped first, the escaped
+  // literal "&lt;" (written "&amp;lt;" in the file) would decode to "<" and the
+  // guard would read markup the figure never contained.
+  const svg = '<text><tspan>a &amp;lt; b &amp;amp; c &lt;d&gt;</tspan></text>';
+  assert.deepEqual(figureText(svg), ["a &lt; b &amp; c <d>"]);
+  // And the ordinary case still decodes.
+  assert.deepEqual(figureText('<text><tspan>Reuse &amp; Crib-Dragging</tspan></text>'),
+    ["Reuse & Crib-Dragging"]);
+});
 
 test("the guard itself fires on the fault it exists to catch", () => {
   // The exact string that shipped, and the shapes next to it that are sound.

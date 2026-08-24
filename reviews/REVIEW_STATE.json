@@ -1,7 +1,7 @@
 {
   "last_review": {
     "branch": "docs/standards-trajectory-and-figure-notation",
-    "commit": "c9c1140787f2fab686be4ad275140e47e06721ab",
+    "commit": "b4933381123e8546106181bec871e6c74bd8a1ae",
     "date": "2026-08-24",
     "effort": "high",
     "model": "claude-opus-5"
@@ -25,7 +25,7 @@
     },
     "cross-format": {
       "effort": "high",
-      "input_fingerprint_sha256": "72de17077d47230a2dc025e0e2cb4f566481d434e974ba8b30fe80ace185d0c3",
+      "input_fingerprint_sha256": "d878dfe8d654f5d590c0b96bb25bf6331849c56544759b7912d48ca7037c6453",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -57,7 +57,7 @@
     },
     "executable-demonstration": {
       "effort": "high",
-      "input_fingerprint_sha256": "c4eaa953c1863622165dd21ebaa01150d8bbf25f09be80400ba4de7c192da62c",
+      "input_fingerprint_sha256": "2e9b6032f374c7dc1292f0fda2c0a21a2cd225b459edd91604f1b8f9ca87105d",
       "model": "claude-opus-5",
       "verdict": "clean",
       "verified_on": "2026-08-24",
@@ -65,7 +65,7 @@
     },
     "factual-correctness": {
       "effort": "high",
-      "input_fingerprint_sha256": "1036e8a886b423b7a7bc757b0c7c54b5275a8d0a35387b11e151bc9e8161755c",
+      "input_fingerprint_sha256": "95ea8a877edd9e53c8527ec140f9b58dd5e9766ad950170dc5ffd432703ce68c",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -89,7 +89,7 @@
     },
     "visual-content": {
       "effort": "high",
-      "input_fingerprint_sha256": "73c537554b13afb144df8ddecdcf1c81eb73bdeedc8711eb19c0e1a0cee95e82",
+      "input_fingerprint_sha256": "09a909a7600c7b51a1a3638c613bedbcf374db43b59fdc91c1f8d9db18cd5dc7",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",

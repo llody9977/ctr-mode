@@ -104,6 +104,7 @@ guard and the escape-by-default template were exercised rather than assumed.
 | --- | --- | --- |
 | F-1 figure equated ciphertext to plaintext | `test/figures.test.mjs` — parses every equation from every generated SVG, rejects cross-space equalities, treats an even count of same-space terms as a difference so `C₁ ⊕ C₂ = P₁ ⊕ P₂` passes | **Yes** — original string reintroduced, generator re-run, test failed with `modes-ctr-etm-gcm.svg: Malleable: C[i] ⊕ Δ = P[i] ⊕ Δ (ciphertext = plaintext)`, then restored |
 | F-4 figure missing dual-use framing | `test/figures.test.mjs` — every SVG must carry a `Scope:` text node naming educational or defensive use | **Yes** — caught two false positives from the guard's own sentence-splitting bug during development, which was fixed |
+| F-5 double-unescape in the new figure guard | `test/figures.test.mjs` — asserts `&amp;lt;` decodes to the literal `&lt;`, not to `<`; the meta-character is unescaped last, mirroring `docs/js/html.mjs` which escapes it first | **Yes** — the assertion fails against the original ordering and passes against the fix |
 | F-2 fabricated quotation | **Not mechanized.** Verifying a quotation requires fetching and diffing the cited artifact; caching every source locally to diff quoted spans is disproportionate to one page. Recorded as CD-0002 so the rule is at least durable | n/a |
 | F-3 dangling `reviews/` references | Register restored this session; `python3 scripts/verify_content_decisions.py` now passes and can be wired into CI | Validator run: `Validated 8 durable content decisions.` |
 
@@ -233,11 +234,12 @@ is the sequence the guide requires. All eight records below originate from this 
 
 | Check | Scope | Result | What this does not prove |
 | --- | --- | --- | --- |
-| `npm test` | 36 tests, 5 files | Pass, 0 fail | That untested claims are correct; that the page's prose matches the code |
+| `npm test` | 37 tests, 5 files | Pass, 0 fail | That untested claims are correct; that the page's prose matches the code |
 | `npm run lint` | ESLint, whole repo | Clean | Anything semantic |
 | Generator correspondence | `generate_diagrams.py` → 6 SVGs | Re-run; only the two intended figures differ from the index | That the figures are *correct*, only that they are current |
-| Guard regression ×3 | Dead-export, CI figure-drift, new figure-notation | All three verified firing on their original faults | That they catch adjacent faults |
+| Guard regression ×4 | Dead-export, CI figure-drift, figure-notation, figure-text unescaping | All four verified firing on their original faults | That they catch adjacent faults |
 | Link check | 29 external URLs across page, README, policy files | 29/29 HTTP 200 | That the linked content still says what is quoted — checked separately per claim |
+| CodeQL (`js/double-escaping`) | PR #7, JavaScript | **Caught F-5** — a high-severity double-unescape in `test/figures.test.mjs`, fixed and re-run | That the absence of further alerts means the code is secure |
 | CI action pins | `actions/checkout@v7`, `setup-node@v7`, `setup-python@v7` | All exist; all are the current major | That the workflows pass on GitHub |
 | Rendered inspection | 8 SVGs × 2 themes; full page | No overflow, no missing glyphs, no horizontal page scroll, all 6 images load | Behaviour on browsers other than the in-app Chromium |
 | Live demonstration | 4 vectors + three-way comparison | All produce the documented outcome; 0 console errors | Behaviour under a Web Crypto implementation with different error semantics |
@@ -246,7 +248,7 @@ is the sequence the guide requires. All eight records below originate from this 
 
 ## Open required findings
 
-**None.** All four required findings from this review were remediated and re-verified within the session:
+**None.** All five required findings were remediated and re-verified within the session — F-1 to F-4 by review, F-5 by CodeQL once a pull request finally caused the workflows to run:
 
 | ID | Artifact | Issue | Resolution |
 | --- | --- | --- | --- |
@@ -254,6 +256,7 @@ is the sequence the guide requires. All eight records below originate from this 
 | F-2 | `docs/index.html` Option B rule 1 | Quoted "are independently chosen" from Bellare & Namprempre; string not in the paper | Restated as a description of the composed key (CD-0002) |
 | F-3 | `README.md`, `test/exports.test.mjs` | Advertised review tooling whose register was deleted; cited decision ID `CD-0009` that no longer resolved | README made accurate; `CD-0009` reference removed; register since restored |
 | F-4 | `vector2-two-time-pad.svg` | Only figure whose scope line omitted educational/defensive framing | Framing added; guard added (CD-0007) |
+| F-5 | `test/figures.test.mjs` | Unescaped `&amp;` before `&lt;`/`&gt;`, so an escaped literal `&lt;` in figure text would double-unescape into markup the figure never contained. Flagged high by CodeQL `js/double-escaping` | Meta-character moved last; regression test added and verified failing against the old order |
 
 ## Optional coverage
 
@@ -286,8 +289,10 @@ Nothing optional remains outstanding: both representation opportunities were ado
 4. **Programmatic scrolling did not take effect** in the embedded browser, so the new section was verified
    structurally (heading present and correctly ordered, table rows and headers, no container overflow, all images
    loaded) rather than by a scrolled screenshot of the section itself.
-5. **CI has not run on these changes** — all checks were executed locally. The workflows were read and their
-   action pins verified to exist, but no GitHub run confirms them.
+5. **CI now runs on these changes.** The earlier branch's pull request had already been squash-merged, so pushing
+   to it triggered nothing; the work was moved to a branch cut fresh from `main` and opened as PR #7, which ran
+   CI, CodeQL, gitleaks and dependency-review. CodeQL immediately caught F-5, which local review had missed —
+   evidence that the local-only verification in the first pass was a real gap, not a formality.
 6. **Standards trajectory is time-sensitive.** C-002, C-024, C-027 and C-028 are all claims about live NIST
    processes checked on 2026-08-24. The `evidence-authority` decay horizon is 90 days; the SP 800-38A revision,
    the SP 800-38D revision and the SP 800-197 accordion work can each invalidate them without any local edit.

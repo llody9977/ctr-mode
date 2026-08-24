@@ -1,7 +1,7 @@
 {
   "last_review": {
-    "branch": "review/dead-exports-and-figure-ci",
-    "commit": "a8161730f3da4fd51a9bbbf8d151b34fb33906e5",
+    "branch": "docs/standards-trajectory-and-figure-notation",
+    "commit": "c9c1140787f2fab686be4ad275140e47e06721ab",
     "date": "2026-08-24",
     "effort": "high",
     "model": "claude-opus-5"
@@ -9,7 +9,7 @@
   "passes": {
     "adversarial-claims": {
       "effort": "high",
-      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
+      "input_fingerprint_sha256": "faae406f4b19a63c30d98960a1a0a181609af5e6a8378ae77809510d6001d0bf",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -17,7 +17,7 @@
     },
     "argument-integrity": {
       "effort": "high",
-      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
+      "input_fingerprint_sha256": "faae406f4b19a63c30d98960a1a0a181609af5e6a8378ae77809510d6001d0bf",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -25,7 +25,7 @@
     },
     "cross-format": {
       "effort": "high",
-      "input_fingerprint_sha256": "a9089b628823dac2e6a207b18a92ffcb473095e2fe499252ceeb0a42b55ef88d",
+      "input_fingerprint_sha256": "72de17077d47230a2dc025e0e2cb4f566481d434e974ba8b30fe80ace185d0c3",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -33,7 +33,7 @@
     },
     "cross-page": {
       "effort": "high",
-      "input_fingerprint_sha256": "783f5cb640261a88beae6b35275409605d8a36fdd65109f637f4cfb9205f6dd0",
+      "input_fingerprint_sha256": "e58c950ddae0a5748777a40d572c2f4459cc9f0fc193305b99d7be70d44fcd59",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -41,7 +41,7 @@
     },
     "decision-reconciliation": {
       "effort": "high",
-      "input_fingerprint_sha256": "46a33a74c6eb94d59a2b788fc4dfa148728a61c1f90ae38188ec31dd1a5821c5",
+      "input_fingerprint_sha256": "bee7f03562757601658f58deb2ec2fb3ca4e84ff203b7065ed25cfd859824e10",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -57,7 +57,7 @@
     },
     "executable-demonstration": {
       "effort": "high",
-      "input_fingerprint_sha256": "e0f5e734a1e5494efb5e2124d3fad34fee2a80912ea60b542b962059343fb215",
+      "input_fingerprint_sha256": "c4eaa953c1863622165dd21ebaa01150d8bbf25f09be80400ba4de7c192da62c",
       "model": "claude-opus-5",
       "verdict": "clean",
       "verified_on": "2026-08-24",
@@ -65,7 +65,7 @@
     },
     "factual-correctness": {
       "effort": "high",
-      "input_fingerprint_sha256": "1f5a7f91d20242413c32578e3a113e6848615767f456c0ed000bda47eee40d92",
+      "input_fingerprint_sha256": "1036e8a886b423b7a7bc757b0c7c54b5275a8d0a35387b11e151bc9e8161755c",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -73,7 +73,7 @@
     },
     "terminology-taxonomy": {
       "effort": "high",
-      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
+      "input_fingerprint_sha256": "faae406f4b19a63c30d98960a1a0a181609af5e6a8378ae77809510d6001d0bf",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -81,7 +81,7 @@
     },
     "topic-completeness": {
       "effort": "high",
-      "input_fingerprint_sha256": "49e5c39b5d31db12d2bb1f7ffdd7e6cae025706b293b5337cd8382ebb0c8ae8c",
+      "input_fingerprint_sha256": "faae406f4b19a63c30d98960a1a0a181609af5e6a8378ae77809510d6001d0bf",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",
@@ -89,7 +89,7 @@
     },
     "visual-content": {
       "effort": "high",
-      "input_fingerprint_sha256": "890440874e6bc62cef991f238c10de58100c5dc6fb55bd2bf8c8a0b4e586452e",
+      "input_fingerprint_sha256": "73c537554b13afb144df8ddecdcf1c81eb73bdeedc8711eb19c0e1a0cee95e82",
       "model": "claude-opus-5",
       "verdict": "findings",
       "verified_on": "2026-08-24",

@@ -14,10 +14,10 @@
 - Review date: 2026-08-24
 - Reviewer: Claude Opus 5, directed by llody
 - Model / effort this review: `claude-opus-5` / `high`
-- Branch: `review/dead-exports-and-figure-ci`
-- Commit: `a8161730f3da4fd51a9bbbf8d151b34fb33906e5`
+- Branch: `docs/standards-trajectory-and-figure-notation` (cut fresh from `main`; the prior branch's PR was already squash-merged, so its commit carried an empty diff and it was retired rather than reused)
+- Base commit: `d337c5f` (`origin/main`)
 - Worktree: **Dirty** — see the two baselines below
-- Review state ID: `7773ac3d87165384ca50debbf365189fb9a0f0b73032012ace808c34384a2ec1`
+- Review state ID: ``
 - State-capture command: `python3 scripts/capture_review_state.py`
 - Pass-routing command: `python3 scripts/review_passes.py --model claude-opus-5 --effort high`
 - Pass state recorded with: `--record` for all 11 passes (every pass ran; nothing was cached)
@@ -30,7 +30,8 @@ Review and remediation were requested in sequence, so this record covers two fro
 | Phase | Scoped content fingerprint | Files | Worktree |
 | --- | --- | --- | --- |
 | A — review, no edits | `5e4463448639ea29560f94f965602fee310f7f9091865a389b54b1cc34e2a05b` | 40 | dirty: `reviews/*` deleted, `README.md` modified |
-| B — post-remediation, post-gate (this record) | `d74bbb1879c8ea4d95fde8fd4a546bc509102332e0d78ce5b13a77ded315eeb9` | 46 | dirty: 6 modified, 5 `reviews/` replacements, `test/figures.test.mjs` new |
+| B — post-remediation, post-gate | `d74bbb1879c8ea4d95fde8fd4a546bc509102332e0d78ce5b13a77ded315eeb9` | 46 | first commit of this work |
+| C — optional coverage adopted (this record) | `c6b7a123d3fe6bdb114ed3c4d7bf7400e35d709300d9675268b4a1b62eb5f498 14947c5e278234d40ac66af76d7d1948eb98ae2fdda1d2ed5d3db385fa5335cb 48` |  | adds the two figures of CD-0009 |
 
 Phase A held unchanged throughout the review: the fingerprint was re-captured at the end and matched. A stray
 `.claude/launch.json` created by the reviewer during that phase was removed and the match re-confirmed before
@@ -50,7 +51,7 @@ content, followed by a residual-exhaustion pass, per the fix-verification rules.
 
 ## Scope inventory
 
-Whole repository, 46 files at the committed state. Table lists artifacts carrying material claims; configuration, lockfile and licence
+Whole repository,  files at the committed state. Table lists artifacts carrying material claims; configuration, lockfile and licence
 were inventoried but carry none.
 
 | Artifact | Type | Direct dependents or generated counterpart | Inspected |
@@ -62,7 +63,7 @@ were inventoried but carry none.
 | `docs/js/ui.mjs` | DOM wiring for all demonstrations | `docs/index.html` | Yes |
 | `docs/styles.css` | Theme tokens, light and dark | `docs/index.html` | Yes |
 | `docs/diagrams/generate_diagrams.py` | Generator for all six figures | Six SVGs; CI `figures` job | Yes |
-| `docs/diagrams/*.svg` (6) | Figures | Generated; `test/figures.test.mjs` | Yes — all six, both themes |
+| `docs/diagrams/*.svg` (8) | Figures | Generated; `test/figures.test.mjs` | Yes — all eight, both themes |
 | `README.md` | Repository front page | Links `docs/`, `test/`, `scripts/` | Yes |
 | `DISCLAIMER.md`, `SECURITY.md`, `CONTRIBUTING.md` | Policy | — | Yes |
 | `test/*.mjs` (5) | Test suite, 36 tests | — | Yes |
@@ -153,8 +154,8 @@ remediation — it constrained the F-1 fix to a three-line layout that fits.
 | AES-CTR mode | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | **covered** (added this review) | covered | covered |
 | Encrypt-then-MAC | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered |
 | AES-GCM / AEAD | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered |
-| Nonce/counter discipline | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | n/a — no wire format of its own | covered | covered |
-| Standards trajectory | covered | covered | n/a — no actors | covered | covered | n/a — not a threat topic | covered | covered | covered | covered | covered | covered | optional extension — a timeline figure would help but the table carries it |
+| Nonce/counter discipline | covered | covered | covered | covered | covered | covered | covered | covered | covered | covered | n/a — no wire format of its own | covered | **covered** — capacity-budget bar added (CD-0009) |
+| Standards trajectory | covered | covered | n/a — no actors | covered | covered | n/a — not a threat topic | covered | covered | covered | covered | covered | covered | **covered** — dated timeline added (CD-0009) |
 
 Interoperability/migration for AES-CTR was the review's one **required gap**; it is closed by the migration
 subsection (CD-0008). No other required gaps.
@@ -195,16 +196,20 @@ via an AEAD, or via AES-CTR composed with HMAC as Encrypt-then-MAC.*
 | `vector2-two-time-pad.svg` | Full cancellation derivation, crib drag | Yes | **No → yes after fix** | Yes | Re-run | Yes after fix | **F-4 corrected** |
 | `vector3-edit-oracle.svg` | 3-step oracle sequence, `00 ⊕ S = S` | Yes | Yes | Yes | Re-run, byte-identical | Yes | Pass |
 | `vector4-counter-reuse.svg` | 8 counter blocks, wrap highlight, RFC 3686 limits | Yes | Yes — explicitly says the demo wraps a tiny counter rather than overflowing AES | Yes | Re-run, byte-identical | Yes | Pass |
+| `standards-timeline.svg` **(new)** | 7 dated markers, each with publication and consequence; closing claim that counter mode was never removed | Yes — every date checked against the publication or its CSRC listing | Yes — scope line dates the summary to August 2026 and disclaims legal/compliance advice | Yes | Generated this review; guards cover it | Yes — depicts standards status, no attack content | Pass |
+| `counter-block-split.svg` **(new)** | 128-bit bar split 96/32 and 64/64; four capacity annotations; closing claim that neither split adds integrity | Yes — arithmetic recomputed, both the from-zero and RFC 3686 from-one limits stated | Yes — scope line names educational use and cites SP 800-38D §8 and RFC 3686 §4 | Yes | Generated this review; guards cover it | Yes | Pass |
 
-All six rendered and inspected at desktop width in **both light and dark themes**. `U+2016` renders correctly
+All eight rendered and inspected at desktop width in **both light and dark themes**. `U+2016` renders correctly
 (not a missing glyph). No text overflows its box; the generator's `box()` guard enforces this at build time.
 
 ### Representation opportunities
 
-| Location | What is dense | Proposed form | Required gap or optional extension |
+| Location | What is dense | Form adopted | Classification and disposition |
 | --- | --- | --- | --- |
-| §"Where the standards are heading" | The sequence TLS 1.3 (2018) → IR 8459 (2024) → SP 800-38A revision → accordions | A dated timeline strip | **Optional extension** — the suite table plus three short paragraphs already carry it |
-| §"Operating limits" | Nonce/counter split as a capacity budget | A bit-field diagram showing the 96/32 split against message count and size | **Optional extension** — prose plus the Option B code comment are followable |
+| §"Where the standards are heading" | The sequence SP 800-38A (2001) → GCM (2007) → TLS 1.3 (2018) → IR 8459 (2024) → accordions | `standards-timeline.svg`, a dated 7-marker axis | Optional extension — **adopted** (CD-0009). The argument is chronological and its force comes from the order, which a reader otherwise rebuilds from four paragraphs |
+| §"Operating limits" | Nonce/counter split as a capacity budget | `counter-block-split.svg`, a 128-bit allocation bar with the demo-helper contrast | Optional extension — **adopted** (CD-0009). Stated three times in prose and a code comment, never shown as one budget |
+
+No representation opportunities remain outstanding.
 
 ## Applicable durable content decisions
 
@@ -222,6 +227,7 @@ is the sequence the guide requires. All eight records below originate from this 
 | CD-0006 | Demonstration variable control | **New — accepted** | Code changed rather than claim weakened |
 | CD-0007 | Per-figure dual-use framing | **New — accepted** | F-4; guard added |
 | CD-0008 | Migration coverage | **New — accepted** | Completeness category 11 |
+| CD-0009 | Two figures adopted | **New — accepted** | Completeness category 13 for two topics; dates and arithmetic verified against sources |
 
 ## Mechanical and rendered checks
 
@@ -233,7 +239,7 @@ is the sequence the guide requires. All eight records below originate from this 
 | Guard regression ×3 | Dead-export, CI figure-drift, new figure-notation | All three verified firing on their original faults | That they catch adjacent faults |
 | Link check | 29 external URLs across page, README, policy files | 29/29 HTTP 200 | That the linked content still says what is quoted — checked separately per claim |
 | CI action pins | `actions/checkout@v7`, `setup-node@v7`, `setup-python@v7` | All exist; all are the current major | That the workflows pass on GitHub |
-| Rendered inspection | 6 SVGs × 2 themes; full page | No overflow, no missing glyphs, no horizontal page scroll, all 6 images load | Behaviour on browsers other than the in-app Chromium |
+| Rendered inspection | 8 SVGs × 2 themes; full page | No overflow, no missing glyphs, no horizontal page scroll, all 6 images load | Behaviour on browsers other than the in-app Chromium |
 | Live demonstration | 4 vectors + three-way comparison | All produce the documented outcome; 0 console errors | Behaviour under a Web Crypto implementation with different error semantics |
 | Adversarial input | Email `user@role=user.example.com`; XSS payload into two demos | Anchor guard held; no live markup, no script execution | Exhaustive injection coverage |
 | Register validation | `verify_content_decisions.py` (PyYAML 6.0.3) | `Validated 8 durable content decisions.` | Technical correctness of any decision |
@@ -261,7 +267,7 @@ All optional items raised were also actioned this session:
   GCM nonce reuse, "the standard assumes integrity is protected by something else" which stated an inference as
   fact, and "Real deployments meet this limit…" which generalised from a single RFC.
 
-Remaining optional, not actioned: the two representation opportunities above.
+Nothing optional remains outstanding: both representation opportunities were adopted as CD-0009.
 
 ## Limitations and uncertainty
 

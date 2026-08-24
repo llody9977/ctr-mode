@@ -340,7 +340,14 @@ async function openEtM(encKey, macKey, payload) {
   <p>GCM's authenticity assurance also has a data bound: SP 800-38D scopes it to the confidential data "up to about 64 gigabytes per invocation".</p>
 
   <h3>Counter exhaustion and rekeying</h3>
-  <p>A counter block is a fixed nonce field plus an integer counter field, and the counter field's width caps how much data one key can encrypt before a counter block repeats. <a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a> §4 uses a 32-bit block counter, permitting "(2<sup>32</sup>)-1 blocks = 4,294,967,295 blocks = 68,719,476,720 octets" per packet. Widening the nonce shrinks the counter and vice versa; the split is a capacity decision, not a detail. A workable rekeying discipline:</p>
+  <p>A counter block is a fixed nonce field plus an integer counter field, and the counter field's width caps how much data one key can encrypt before a counter block repeats. <a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a> §4 uses a 32-bit block counter, permitting "(2<sup>32</sup>)-1 blocks = 4,294,967,295 blocks = 68,719,476,720 octets" per packet. Widening the nonce shrinks the counter and vice versa; the split is a capacity decision, not a detail.</p>
+
+  <figure>
+    <img src="diagrams/counter-block-split.svg" alt="The 128-bit counter block drawn as a bar allocated between nonce and counter. Production split: 96 bits of nonce and 32 bits of counter. The 96 random nonce bits keep the chance of a repeat below 2 to the minus 32 out to about 2 to the 32 messages; the 32-bit counter allows 2 to the 32 blocks from zero, which is 64 gibibytes in one message, and RFC 3686 starts its counter at 1 so its limit is 2 to the 32 minus 1 blocks, 68,719,476,720 octets. Below it, this repository's demo helper splits 64 and 64, which is too narrow for random nonces at scale but immaterial because every demo run takes a fresh key. Neither split adds integrity — the budget governs only how much one key may encrypt before a counter block repeats, and a tag is still required on top.">
+    <figcaption>Bits spent on the nonce are taken from the counter. One side buys headroom against nonce collision, the other buys message size — and neither buys integrity.</figcaption>
+  </figure>
+
+  <p>A workable rekeying discipline:</p>
   <ol>
     <li><strong>Fix the split up front</strong> from the largest message and the highest message count the key must serve, and record both numbers alongside the format.</li>
     <li><strong>Count invocations per key, not per process.</strong> SP 800-38D's 2<sup>32</sup> ceiling is explicitly "a 'global' requirement" across every instance using that key, so a fleet must divide the budget among its nodes rather than each assuming the whole.</li>
@@ -350,6 +357,11 @@ async function openEtM(encKey, macKey, payload) {
 
   <h2 id="standards-direction">Where the standards are heading</h2>
   <p>"Modern protocols dropped CTR" is a common reading of the last decade, and it inverts what happened. What was dropped is <em>unauthenticated</em> encryption. Counter mode came through that clear-out as the keystream underneath nearly everything that replaced it.</p>
+
+  <figure>
+    <img src="diagrams/standards-timeline.svg" alt="Dated timeline of counter mode's standing in the standards, 2001 to 2025 onward. December 2001, SP 800-38A approves CTR as one of five confidentiality modes. January 2004, RFC 3686 puts AES-CTR in IPsec ESP with a 32-bit block counter. November 2007, SP 800-38D defines GCM as counter mode plus a GHASH tag. August 2018, TLS 1.3 permits AEAD only — and all five of its cipher suites are counter mode. April 2023, NIST decides to revise SP 800-38A to add authentication guidance. September 2024, NIST IR 8459 recommends not yet deprecating the mode because no alternative is standardised. 2025 onward, the SP 800-197 accordion series is in development as the named condition for retiring it. Counter mode was never removed; what was removed is using it without a tag.">
+    <figcaption>Read left to right, the mode is approved, absorbed into AEAD constructions, kept when unauthenticated modes were cut, and then explicitly retained pending a replacement. No step on this line deprecates counter mode.</figcaption>
+  </figure>
 
   <h3>TLS 1.3 removed confidentiality-only modes, not counter mode</h3>
   <p><a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446</a> states that its list of symmetric encryption algorithms "has been pruned of all algorithms that are considered legacy. Those that remain are all Authenticated Encryption with Associated Data (AEAD) algorithms." NIST characterises the same change as a decision "to deprecate all modes of operation that only provided confidentiality protection" (<a href="https://csrc.nist.gov/pubs/ir/8459/final">IR 8459</a> §4). What that removed was RC4, and CBC composed as MAC-then-Encrypt — the constructions behind BEAST and Lucky Thirteen. Every suite left standing is still a counter-driven keystream with authentication attached:</p>

@@ -274,3 +274,51 @@ decisions:
     superseded_by: null
     originated_on: "2026-08-24"
     last_reviewed_on: "2026-08-24"
+
+  - id: "CD-0009"
+    title: "Adopt the two representation opportunities the completeness review classified as optional"
+    status: "accepted"
+    implementation_state: "implemented"
+    scope:
+      files:
+        - "docs/index.html"
+        - "docs/diagrams/generate_diagrams.py"
+        - "docs/diagrams/standards-timeline.svg"
+        - "docs/diagrams/counter-block-split.svg"
+      concepts:
+        - "visual representation"
+        - "standards trajectory"
+        - "counter block capacity budget"
+        - "nonce and counter split"
+    originating_feedback: "The completeness matrix recorded two places where dense prose would be materially clearer as a visual, both classified as optional extensions rather than required gaps: the dated sequence of the standards trajectory, and the 96/32 nonce-counter allocation."
+    decision: "Add both figures — standards-timeline.svg in the standards-direction section, counter-block-split.svg in the counter-exhaustion section — rather than leaving them as noted-but-declined."
+    rationale: "Both cases are the shape a figure is actually for. The trajectory argument is chronological and its force comes from the order of events, which a reader has to reconstruct from four paragraphs otherwise. The 96/32 split is an allocation whose two halves buy different limits, stated three separate times in prose and a code comment without ever being shown as one budget. Neither figure repeats prose decoratively: the timeline carries dates the prose does not enumerate, and the bar shows the proportion and the demo-helper contrast in one view."
+    authoritative_sources:
+      - title: "NIST SP 800-38A (December 2001)"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/a/final"
+        supports: "Publication date and CTR's approval as one of five confidentiality modes — the timeline's first marker."
+      - title: "NIST SP 800-38D (November 2007) §8"
+        url: "https://csrc.nist.gov/pubs/sp/800/38/d/final"
+        supports: "Publication date, GCM as counter mode plus GHASH, and the IV-uniqueness bound the nonce half of the budget is sized against."
+      - title: "RFC 3686 §4 (January 2004)"
+        url: "https://www.rfc-editor.org/rfc/rfc3686"
+        supports: "The 32-bit block counter, the counter starting at one, and the 68,719,476,720-octet per-packet limit."
+      - title: "RFC 8446 (August 2018)"
+        url: "https://www.rfc-editor.org/rfc/rfc8446"
+        supports: "The AEAD-only cut and the five cipher suites — the timeline's 2018 marker."
+      - title: "NIST IR 8459 (September 2024) §12"
+        url: "https://csrc.nist.gov/pubs/ir/8459/final"
+        supports: "The recommendation not to deprecate yet, and the reason — no standardised alternative — which is what the timeline's final two markers depict."
+    verification_methods:
+      - "Every date checked against the publication itself or its CSRC listing rather than from recollection; SP 800-38A December 2001, RFC 3686 January 2004, SP 800-38D November 2007, RFC 8446 August 2018, IR 8459 September 2024."
+      - "Capacity arithmetic recomputed: 2^32 blocks x 16 bytes = 68,719,476,736 bytes = 64 GiB; (2^32 - 1) x 16 = 68,719,476,720 octets for RFC 3686's counter starting at one."
+      - "Both figures rendered and inspected in light and dark themes; the generator's box() overflow guard passed; test/figures.test.mjs scope and notation guards iterate the directory and now cover eight figures."
+    approved_outcome: "docs/index.html carries both figures with captions and alt text conveying each figure's conclusion at the same strength as the prose; both are produced by generate_diagrams.py and covered by the CI figure-correspondence job."
+    invalidation_conditions:
+      - "A NIST or IETF action changes the trajectory the timeline depicts — an SP 800-38A revision publishing, an accordion being approved, or a deprecation actually taking effect."
+      - "The page's recommended counter split changes, making the bar's production row wrong."
+    related_decisions: ["CD-0003", "CD-0004", "CD-0007"]
+    supersedes: []
+    superseded_by: null
+    originated_on: "2026-08-24"
+    last_reviewed_on: "2026-08-24"

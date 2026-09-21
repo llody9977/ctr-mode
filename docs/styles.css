@@ -40,6 +40,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 code { font-family: var(--mono); font-size: .9em; background: var(--neu); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
 .lede { font-size: clamp(1.35rem, 2.25vw, 2.15rem); line-height: 1.25; letter-spacing: -.025em; color: var(--ink); }
 .muted { color: var(--muted); }
+.flush { margin: 0; }
+.mt-8 { margin-top: 8px; }
+.mt-10 { margin-top: 10px; }
+.mt-12 { margin-top: 12px; }
+.mt-14 { margin-top: 14px; }
+.line-label { display: inline-block; margin-top: 6px; }
+.field-grow { flex: 1 1 200px; }
+.full-width { width: 100%; }
+.detection-limit { margin: 8px 0 0; }
 /* Figures are 900px-wide SVGs carrying body text at 11-13px. Scaled to fit a
    375px viewport they render at ~0.37, putting that text near 4px — present but
    unreadable, including the scope line each figure needs to stay accurate when

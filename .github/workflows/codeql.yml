@@ -11,14 +11,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      security-events: write
-      actions: read
+      security-events: write # upload CodeQL results
+      actions: read # read workflow metadata for analysis
       contents: read
     strategy:
       fail-fast: false

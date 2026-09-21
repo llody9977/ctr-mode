@@ -41,8 +41,8 @@ async function issueNormalToken() {
 
   $("v1-out").innerHTML = html`<div class="diff-box">` +
     html`<strong>Issued Plaintext:</strong> <code>${lastIssuedPlaintext}</code><br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Ciphertext (AES-CTR):</strong> <code>${toHex(lastIssuedToken)}</code><br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Server verified role:</strong> <span class="clean">${role}</span>` +
+    html`<strong class="line-label">Ciphertext (AES-CTR):</strong> <code>${toHex(lastIssuedToken)}</code><br>` +
+    html`<strong class="line-label">Server verified role:</strong> <span class="clean">${role}</span>` +
     html`</div>`;
 
   verdict($("v1-verdict"), "good", html`Standard token issued. Server decrypted and verified role = <strong>${role}</strong>.`);
@@ -78,9 +78,9 @@ async function runBitFlip() {
 
   $("v1-out").innerHTML = html`<div class="diff-box">` +
     html`<strong>Tampered Ciphertext (Delta injected at byte ${offset}):</strong><br><code>${raw(highlightedCt)}</code><br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Injected XOR Delta (hex):</strong> <code>${toHex(delta)}</code> ("${oldSub}" ⊕ "${newSub}")<br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Server Decrypted Plaintext:</strong> <code>${fullPlaintext}</code><br>` +
-    html`<strong style="margin-top:6px;display:inline-block">Server Accepted Role:</strong> <span class="${forged ? "flip" : "clean"}">${forgedRole}</span>` +
+    html`<strong class="line-label">Injected XOR Delta (hex):</strong> <code>${toHex(delta)}</code> ("${oldSub}" ⊕ "${newSub}")<br>` +
+    html`<strong class="line-label">Server Decrypted Plaintext:</strong> <code>${fullPlaintext}</code><br>` +
+    html`<strong class="line-label">Server Accepted Role:</strong> <span class="${forged ? "flip" : "clean"}">${forgedRole}</span>` +
     html`</div>`;
 
   // Derived from what the server actually returned, never asserted in advance.
@@ -272,7 +272,7 @@ function schemeCard(index, r, deltaLen) {
     ? html`<strong>Server returned:</strong> <span class="clean">nothing — ${r.error}</span><br>` +
       html`<span class="muted">The tag was checked before decryption, so no plaintext was ever produced.</span>`
     : html`<strong>Server decrypted:</strong> <code>${r.plaintextReturned}</code><br>` +
-      html`<strong style="margin-top:6px;display:inline-block">Role accepted:</strong> <span class="flip">${r.roleAccepted}</span>`;
+      html`<strong class="line-label">Role accepted:</strong> <span class="flip">${r.roleAccepted}</span>`;
 
   return html`<div class="scheme ${blocked ? "pass" : "fail"}">` +
     html`<div class="scheme-head"><span class="scheme-name">${index} · ${r.scheme}</span>${raw(badge)}</div>` +
@@ -280,7 +280,7 @@ function schemeCard(index, r, deltaLen) {
       html`<strong>${label} after tampering:</strong><br>` +
       html`<code class="hexline">${raw(markTamper(r.tamperedHex, r.tamperOffset, deltaLen))}</code><br>` +
       html`<span class="muted">unchanged original: <code class="hexline">${before.slice(0, 48)}…</code></span><br>` +
-      html`<div style="margin-top:8px">${raw(outcome)}</div>` +
+      html`<div class="mt-8">${raw(outcome)}</div>` +
     html`</div></div>`;
 }
 
@@ -294,7 +294,7 @@ async function runDefenceComparison() {
 
     $("def-attack").innerHTML = html`<div class="diff-box">` +
       html`<strong>Issued plaintext:</strong> <code>${cmp.profile}</code><br>` +
-      html`<strong style="margin-top:6px;display:inline-block">Attacker's move (identical in all three):</strong> ` +
+      html`<strong class="line-label">Attacker's move (identical in all three):</strong> ` +
       html`XOR <code>${cmp.deltaHex}</code> into the ciphertext at byte ${cmp.offset}, ` +
       html`turning <code>role=${cmp.oldRole}</code> into <code>role=${cmp.newRole}</code>.` +
       html`</div>`;

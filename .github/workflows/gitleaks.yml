@@ -10,8 +10,8 @@
 #     personal account, so that setting does not exist for it and cannot be turned
 #     on — gitleaks is the only thing covering that category, not a second opinion
 #     on it. Same for validity checks. Revisit only if this moves to an org.
-#   - Push protection is bypassable: a pusher can override it with a stated reason.
-#     This runs as a required status check on main, which a merge cannot skip.
+#   - Push protection is bypassable with a recorded reason. This workflow enforces
+#     the scan on pull requests and records the result after a direct maintainer push.
 #   - It scans full history on every push and PR, not just the pushed delta.
 #
 # Runs the gitleaks binary directly rather than gitleaks-action: that avoids the
@@ -28,8 +28,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: gitleaks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   gitleaks:
+    name: gitleaks
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

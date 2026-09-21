@@ -29,6 +29,13 @@ function requireCounter(counter, counterLength) {
   }
 }
 
+function requireCounterCapacity(byteLength, counterLength, operation) {
+  const blocks = Math.ceil(byteLength / BLOCK_SIZE);
+  if (blocks > 2 ** counterLength) {
+    throw new RangeError(`${operation} would repeat the AES-CTR counter within one operation`);
+  }
+}
+
 // ---- byte / string helpers ----
 export const toHex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 export function fromHex(s) {
@@ -40,10 +47,14 @@ export function fromHex(s) {
 export const utf8 = (s) => new TextEncoder().encode(s);
 export const utf8Decode = (b) => new TextDecoder().decode(b);
 // latin1: 1 char <-> 1 byte for exact binary string representations
-export const latin1Encode = (s) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
+export function latin1Encode(s) {
+  if (typeof s !== "string") throw new TypeError("Latin-1 input must be a string");
+  return Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
+}
 export const latin1Decode = (b) => String.fromCharCode(...new Uint8Array(b));
 
 export function concat(...arrays) {
+  arrays.forEach((a, i) => requireBytes(`array ${i + 1}`, a));
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
   let o = 0;
@@ -55,6 +66,8 @@ export function concat(...arrays) {
 }
 
 export function xorBytes(a, b) {
+  requireBytes("left XOR operand", a);
+  requireBytes("right XOR operand", b);
   const len = Math.min(a.length, b.length);
   const out = new Uint8Array(len);
   for (let i = 0; i < len; i++) out[i] = a[i] ^ b[i];
@@ -90,6 +103,7 @@ export async function aesCtrEncrypt(keyBytes, plaintext, counterBlock = null, co
   requireBytes("AES key", keyBytes, [16, 24, 32]);
   requireBytes("plaintext", plaintext);
   requireCounter(counter, counterLength);
+  requireCounterCapacity(plaintext.length, counterLength, "plaintext");
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-CTR" }, false, ["encrypt"]);
   const ct = new Uint8Array(await subtle.encrypt({ name: "AES-CTR", counter, length: counterLength }, k, plaintext));
   return { counterBlock: new Uint8Array(counter), ciphertext: ct };
@@ -99,6 +113,7 @@ export async function aesCtrDecrypt(keyBytes, ciphertext, counterBlock, counterL
   requireBytes("AES key", keyBytes, [16, 24, 32]);
   requireBytes("ciphertext", ciphertext);
   requireCounter(counterBlock, counterLength);
+  requireCounterCapacity(ciphertext.length, counterLength, "ciphertext");
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-CTR" }, false, ["decrypt"]);
   const pt = new Uint8Array(await subtle.decrypt({ name: "AES-CTR", counter: counterBlock, length: counterLength }, k, ciphertext));
   return pt;
@@ -106,6 +121,9 @@ export async function aesCtrDecrypt(keyBytes, ciphertext, counterBlock, counterL
 
 // Keystream generator: encrypting all-zeros under (key, counter) extracts the raw keystream S
 export async function aesCtrKeystream(keyBytes, length, counterBlock, counterLength = 64) {
+  if (!Number.isInteger(length) || length < 0 || length > 65_536) {
+    throw new RangeError("keystream length must be an integer from 0 to 65536 bytes");
+  }
   const zeros = new Uint8Array(length);
   const { ciphertext } = await aesCtrEncrypt(keyBytes, zeros, counterBlock, counterLength);
   return ciphertext;
@@ -119,7 +137,7 @@ export async function aesGcmEncrypt(keyBytes, plaintext, nonce = null) {
   requireBytes("GCM nonce", nonce, [12]);
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
   const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv: nonce }, k, plaintext));
-  return { nonce, ciphertext: ct }; // includes 16-byte authentication tag
+  return { nonce: new Uint8Array(nonce), ciphertext: ct }; // includes 16-byte authentication tag
 }
 
 export async function aesGcmDecrypt(keyBytes, nonce, ciphertextWithTag) {

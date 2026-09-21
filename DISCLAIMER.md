@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`ctr-mode` is an educational deep-dive into what AES-CTR does and does not guarantee. CTR is a NIST-approved confidentiality mode that provides no integrity protection; this repository shows what that gap costs when CTR is used alone — the mathematical break, four attack vectors with real-world evidence, a tested demonstration toolkit running real Web Crypto AES in the browser, and detection techniques — then shows the two correct fixes (an AEAD, or AES-CTR composed with HMAC as Encrypt-then-MAC). Its scope is unauthenticated CTR mode and the boundary with authenticated alternatives — not a general cryptography course, and not a claim that CTR should be avoided.
+`ctr-mode` is a browser-based proof of concept showing the boundary between AES-CTR confidentiality and message integrity. Four self-contained demonstrations reproduce failures caused by missing authentication or repeated counter blocks. The comparison then applies the same tampering to AES-GCM and AES-CTR with Encrypt-then-MAC. The project does not claim that AES is broken or that CTR is deprecated.
 
 ## No warranty
 

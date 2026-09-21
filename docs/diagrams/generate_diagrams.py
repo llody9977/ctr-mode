@@ -376,10 +376,10 @@ def d7():
         ("Dec 2001", "SP 800-38A", "CTR approved, one of\nfive confidentiality modes", NAVY, True),
         ("Jan 2004", "RFC 3686", "AES-CTR in IPsec ESP;\n32-bit block counter", NAVY, False),
         ("Nov 2007", "SP 800-38D", "GCM = counter mode\n+ GHASH tag", BLUE, True),
-        ("Aug 2018", "TLS 1.3", "AEAD only — and all five\nsuites are counter mode", GREEN, False),
+        ("Aug 2018", "TLS 1.3", "RFC 8446 defines five\nAEAD cipher suites", GREEN, False),
         ("Apr 2023", "Revision decided", "SP 800-38A to gain\nauthentication guidance", AMBER, True),
         ("Sep 2024", "IR 8459", "“not yet deprecating” —\nno alternative standardised", AMBER, False),
-        ("2025 →", "Accordions", "SP 800-197 series: the\nnamed condition to retire", GRAY, True),
+        ("2025 →", "Accordions", "SP 800-197A candidate\nreplacement in development", GRAY, True),
     ]
     n = len(events)
     x0, x1 = 105, 795
@@ -399,14 +399,14 @@ def d7():
         label_y = axis_y - 12 if not above else axis_y + 20
         b.append(text(cx, label_y, f"{date}  ·  {head}", size=10.5, fill=colour, weight="700"))
 
-    b.append(text(W / 2, 352, "Counter mode was never removed — what was removed is using it without a tag. "
-                              "Every step right of 2018 keeps the keystream and adds authentication.",
+    b.append(text(W / 2, 352, "The base TLS 1.3 suite set removed confidentiality without authentication. "
+                              "It did not remove counter-based encryption.",
                   size=11, fill=INK, weight="600"))
     b.append(text(W / 2, 374, "Scope: educational summary of published NIST and IETF status as of September 2026; "
                               "dates from each publication or its CSRC listing. Not legal or compliance advice.",
                   size=10.5, fill=MUTED))
     return svg(W, 390, "How counter mode came through the move to authenticated encryption", "".join(b),
-               subtitle="approval, adoption inside AEAD, the AEAD-only cut, and the condition NIST named for retiring the mode")
+               subtitle="approval, adoption inside AEAD, the authenticated-encryption transition, and a candidate successor")
 
 # ---------------- Diagram 8: the counter block as a capacity budget ----------------
 # The 96/32 split is stated twice in prose and once in a code comment, each time
@@ -430,7 +430,7 @@ def d8():
                   size=11.5, fill=INK, weight="600"))
 
     b.append(split(
-        104, 96, 32, "Production split — what the page's samples use, and RFC 3686's shape",
+        104, 96, 32, "The page's sample uses a random 96-bit nonce and a 32-bit counter",
         "96 random bits keep the chance of a repeat\nbelow 2⁻³² out to about 2³² messages",
         "2³² blocks from zero = 64 GiB in one message\n(RFC 3686 starts at 1, so 2³²−1 = 68,719,476,720 octets)",
         BLUE))
@@ -444,8 +444,8 @@ def d8():
     b.append(text(W / 2, 356, "Neither split adds integrity. The budget governs how much one key may encrypt "
                               "before a counter block repeats — a tag is still required on top.",
                   size=11, fill=INK, weight="600"))
-    b.append(text(W / 2, 378, "Scope: educational illustration of counter-block allocation; limits per NIST SP 800-38D §8 "
-                              "and RFC 3686 §4. Defensive use.",
+    b.append(text(W / 2, 378, "Scope: educational allocation. RFC 3686 uses the same 96/32 widths but builds the prefix "
+                              "from a 32-bit nonce and 64-bit IV.",
                   size=10.5, fill=MUTED))
     return svg(W, 394, "The counter block is a capacity budget", "".join(b),
                subtitle="what the nonce buys, what the counter buys, and why the demo helper splits it differently")

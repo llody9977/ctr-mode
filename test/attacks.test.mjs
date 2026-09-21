@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import {
   aesCtrEncrypt, aesCtrDecrypt, aesCtrKeystream,
   fromHex, toHex, utf8, utf8Decode,
-  xorBytes, randomKey, makeCounterBlock,
+  xorBytes, randomKey, makeCounterBlock, latin1Encode, concat,
 } from "../docs/js/crypto.mjs";
 import {
   ProfileService, flipCiphertextSubstring,
@@ -111,6 +111,45 @@ test("crypto helpers reject malformed keys, counters, nonces, and hexadecimal in
     () => aesCtrEncrypt(randomKey(), utf8("test"), new Uint8Array(16), 0),
     /counter length must be an integer from 1 to 128 bits/
   );
+  await assert.rejects(
+    () => aesCtrEncrypt(randomKey(), new Uint8Array(33), new Uint8Array(16), 1),
+    /repeat the AES-CTR counter/
+  );
+  await assert.rejects(
+    () => aesCtrDecrypt(randomKey(), new Uint8Array(33), new Uint8Array(16), 1),
+    /repeat the AES-CTR counter/
+  );
+  await assert.rejects(
+    () => aesCtrKeystream(randomKey(), -1, new Uint8Array(16)),
+    /keystream length/
+  );
+  assert.throws(() => xorBytes(new Uint8Array(), []), /right XOR operand/);
+  assert.throws(() => concat(new Uint8Array(), []), /array 2/);
+  assert.throws(() => latin1Encode(null), /must be a string/);
+});
+
+test("attack helpers fail closed on malformed offsets and uninitialized state", async () => {
+  assert.throws(
+    () => flipCiphertextSubstring(new Uint8Array(3), "role=user", "user", "root", "role="),
+    /extends beyond the ciphertext/
+  );
+  assert.throws(
+    () => knownPlaintextRecover(new Uint8Array(4), new Uint8Array(4), new Uint8Array(4), -1),
+    /non-negative integer/
+  );
+  assert.throws(() => cribDrag(new Uint8Array(4), "a", 0.5), /must be an integer/);
+
+  const service = new DocumentEditorService("secret");
+  assert.throws(() => service.getCiphertext(), /has not been initialized/);
+  await service.init();
+  await assert.rejects(
+    () => service.edit(service.getCiphertext(), -1, new Uint8Array()),
+    /non-negative integer/
+  );
+  await assert.rejects(
+    () => service.edit(service.getCiphertext(), 7, new Uint8Array()),
+    /cannot extend beyond the ciphertext/
+  );
 });
 
 test("Vector 1 — Precision bit-flipping forges admin role with zero errors", async () => {
@@ -156,7 +195,8 @@ test("Vector 1 — an ambiguous target fails loudly instead of flipping the wron
   assert.throws(() => flipCiphertextSubstring(token, fullPlaintext, "root", "user", "role="), /expected "root" immediately after/);
   // Unanchored still works where the target genuinely is unique.
   const unique = "email=alice@example.com&uid=1000&role=user";
-  assert.doesNotThrow(() => flipCiphertextSubstring(token, unique, "user", "root"));
+  const uniqueToken = await service.issueToken("alice@example.com");
+  assert.doesNotThrow(() => flipCiphertextSubstring(uniqueToken, unique, "user", "root"));
 });
 
 test("Vector 2 — Two-time pad keystream cancellation reveals plaintext XOR", async () => {

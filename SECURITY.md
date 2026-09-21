@@ -24,4 +24,4 @@ Please give a reasonable private window before disclosing publicly. This is a re
 
 ## Scope
 
-Security testing must target only your own local copy of this project. Do not test against, attack, or attempt to access any third-party or production system, any infrastructure you do not own, or any account that is not yours.
+Security testing must be limited to code, data, and systems you own or are explicitly authorized to assess. The published demonstrations use synthetic data in the browser and do not require access to any external target. Do not test the techniques against third-party services, production systems, or accounts that are not yours.

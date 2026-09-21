@@ -9,8 +9,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,6 +29,7 @@ jobs:
         run: node --test   # no dependencies; the tests import only the demo modules
 
   figures:
+    name: figures
     # A committed SVG can drift silently from the generator that claims to produce
     # it: a code change that is never regenerated, or a hand-edited artifact, passes
     # every syntax and link check. Regenerate and fail on any diff, so the figures on
@@ -43,6 +49,7 @@ jobs:
         run: git diff --exit-code -- 'docs/diagrams/*.svg'
 
   lint:
+    name: lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -69,6 +69,11 @@ export class ProfileService {
 // a tampered token whose role never changed while the demonstration reports a
 // successful escalation. Ambiguity therefore fails loudly rather than guessing.
 export function flipCiphertextSubstring(ciphertext, fullKnownPlaintext, oldSubstring, newSubstring, anchor = null) {
+  if (!(ciphertext instanceof Uint8Array)) throw new TypeError("ciphertext must be a Uint8Array");
+  if (typeof fullKnownPlaintext !== "string" || typeof oldSubstring !== "string" || typeof newSubstring !== "string") {
+    throw new TypeError("known plaintext and replacement values must be strings");
+  }
+  if (anchor !== null && typeof anchor !== "string") throw new TypeError("anchor must be a string or null");
   if (oldSubstring.length !== newSubstring.length) {
     throw new Error("old and new substrings must be equal length for in-place bit flipping");
   }
@@ -95,6 +100,9 @@ export function flipCiphertextSubstring(ciphertext, fullKnownPlaintext, oldSubst
   const tampered = new Uint8Array(ciphertext);
   const oldBytes = latin1Encode(oldSubstring);
   const newBytes = latin1Encode(newSubstring);
+  if (offset + oldBytes.length > ciphertext.length) {
+    throw new RangeError("target field extends beyond the ciphertext");
+  }
   for (let i = 0; i < oldBytes.length; i++) {
     tampered[offset + i] ^= oldBytes[i] ^ newBytes[i];
   }
@@ -116,6 +124,10 @@ export function twoTimePadXor(c1, c2) {
 
 // Recover P2 given C1, C2 and known P1 fragment
 export function knownPlaintextRecover(c1, c2, knownP1Bytes, offset = 0) {
+  if (!(c1 instanceof Uint8Array) || !(c2 instanceof Uint8Array) || !(knownP1Bytes instanceof Uint8Array)) {
+    throw new TypeError("ciphertexts and known plaintext must be Uint8Array values");
+  }
+  if (!Number.isInteger(offset) || offset < 0) throw new RangeError("offset must be a non-negative integer");
   const xorStream = twoTimePadXor(c1, c2);
   const availableLen = Math.min(knownP1Bytes.length, xorStream.length - offset);
   if (availableLen <= 0) return new Uint8Array(0);
@@ -128,6 +140,9 @@ export function knownPlaintextRecover(c1, c2, knownP1Bytes, offset = 0) {
 
 // Drag a candidate word (crib) across the XOR stream at a given offset
 export function cribDrag(xorStream, cribString, offset) {
+  if (!(xorStream instanceof Uint8Array)) throw new TypeError("XOR stream must be a Uint8Array");
+  if (typeof cribString !== "string") throw new TypeError("crib must be a string");
+  if (!Number.isInteger(offset)) throw new RangeError("crib drag offset must be an integer");
   const cribBytes = utf8(cribString);
   if (offset < 0 || offset + cribBytes.length > xorStream.length) {
     throw new Error("crib drag offset out of bounds");
@@ -170,12 +185,21 @@ export class DocumentEditorService {
   }
 
   getCiphertext() {
+    if (!(this.ciphertext instanceof Uint8Array)) throw new Error("document service has not been initialized");
     return new Uint8Array(this.ciphertext);
   }
 
   // API endpoint: edit(ciphertext, offset, newPlaintextBytes)
   // Decrypts ciphertext, overwrites plaintext at offset, re-encrypts under same key+counter
   async edit(ciphertext, offset, newPlaintextBytes) {
+    if (!(ciphertext instanceof Uint8Array) || !(newPlaintextBytes instanceof Uint8Array)) {
+      throw new TypeError("ciphertext and replacement plaintext must be Uint8Array values");
+    }
+    if (!Number.isInteger(offset) || offset < 0) throw new RangeError("edit offset must be a non-negative integer");
+    if (offset > ciphertext.length) throw new RangeError("edit offset cannot extend beyond the ciphertext");
+    if (offset + newPlaintextBytes.length > 65_536) {
+      throw new RangeError("edited document cannot exceed 65536 bytes");
+    }
     const pt = await aesCtrDecrypt(this.key, ciphertext, this.counter);
     const updatedPt = new Uint8Array(Math.max(pt.length, offset + newPlaintextBytes.length));
     updatedPt.set(pt, 0);

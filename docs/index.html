@@ -6,7 +6,7 @@
 <title>Why AES-CTR needs authentication | Interactive proof of concept</title>
 <meta name="description" content="A browser-based proof of concept showing how unauthenticated AES-CTR fails and how AES-GCM or Encrypt-then-MAC prevents the same tampering.">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔓</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -32,7 +32,7 @@
 <main id="main">
   <div class="callout warn">
     <span class="callout-title">Purpose and safe scope</span>
-    <p style="margin:0">This page helps engineers and security reviewers recognize unauthenticated CTR, understand the resulting exposure, and choose a proportionate fix. Every target is a self-contained browser simulation. Use these techniques only on systems you own or are explicitly authorized to assess.</p>
+    <p class="flush">This page helps engineers and security reviewers recognize unauthenticated CTR, understand the resulting exposure, and choose a proportionate fix. Every target is a self-contained browser simulation. Use these techniques only on systems you own or are explicitly authorized to assess.</p>
   </div>
 
   <h2 id="mechanism">How the weakness arises</h2>
@@ -75,7 +75,7 @@
     <h3>Change a role without the key</h3>
     <p class="hint">The service issues encrypted tokens for user accounts (<code>email=...&amp;uid=1000&amp;role=user</code>). You never see the AES key.</p>
     <label for="v1-email">Account email</label>
-    <input type="text" id="v1-email" value="alice@example.com">
+    <input type="text" id="v1-email" value="alice@example.com" maxlength="254">
     <label for="v1-role">Target role</label>
     <select id="v1-role">
       <option value="root">root (4 bytes, matching "user")</option>
@@ -85,7 +85,7 @@
       <button type="button" id="v1-issue" class="secondary">Issue normal token</button>
       <button type="button" id="v1-flip" class="danger">Flip bits in ciphertext</button>
     </div>
-    <div id="v1-out" style="margin-top:14px"></div>
+    <div id="v1-out" class="mt-14"></div>
     <div class="verdict" id="v1-verdict"></div>
   </div>
 
@@ -107,30 +107,30 @@
     <div class="demo-head">Live in your browser</div>
     <h3>Reuse a keystream and recover plaintext</h3>
     <label for="v2-p1">Plaintext message 1</label>
-    <input type="text" id="v2-p1" value="TRANSFER $00500 TO ACCOUNT #100">
+    <input type="text" id="v2-p1" value="TRANSFER $00500 TO ACCOUNT #100" maxlength="256">
     <label for="v2-p2">Plaintext message 2</label>
-    <input type="text" id="v2-p2" value="MEETING AT MIDNIGHT AT DOCKS #9">
+    <input type="text" id="v2-p2" value="MEETING AT MIDNIGHT AT DOCKS #9" maxlength="256">
     <div class="row">
       <button type="button" id="v2-encrypt">Encrypt both under same (Key, Nonce)</button>
     </div>
     <p class="hint stale" id="v2-stale"></p>
-    <label style="margin-top:12px">Ciphertext XOR Stream (<code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code> in hex)</label>
+    <label class="mt-12">Ciphertext XOR Stream (<code>C₁ ⊕ C₂ = P₁ ⊕ P₂</code> in hex)</label>
     <div class="diff-box" id="v2-xor-hex"></div>
-    <div class="row" style="margin-top:12px">
-      <div style="flex:1 1 200px">
+    <div class="row mt-12">
+      <div class="field-grow">
         <label for="v2-crib-input">Candidate word</label>
-        <input type="text" id="v2-crib-input" value="TRANSFER">
+        <input type="text" id="v2-crib-input" value="TRANSFER" maxlength="64">
       </div>
-      <div style="flex:1 1 200px">
+      <div class="field-grow">
         <label for="v2-crib-offset">Crib Drag Offset: <span id="v2-offset-val">0</span></label>
-        <input type="range" id="v2-crib-offset" min="0" max="30" value="0" style="width:100%">
+        <input type="range" id="v2-crib-offset" min="0" max="30" value="0" class="full-width">
       </div>
     </div>
-    <div class="diff-box" id="v2-crib-result" style="margin-top:10px"></div>
-    <div class="row" style="margin-top:10px">
+    <div class="diff-box" id="v2-crib-result"></div>
+    <div class="row mt-10">
       <button type="button" id="v2-known-p1" class="secondary">Recover P₂ using known P₁</button>
     </div>
-    <div class="diff-box" style="margin-top:10px">
+    <div class="diff-box">
       <strong>Recovered Message 2:</strong> <span id="v2-recovered-p2" class="clean">[Click button above]</span>
     </div>
     <div class="verdict" id="v2-verdict"></div>
@@ -149,15 +149,15 @@
     <div class="demo-head">Live in your browser</div>
     <h3>Extract a document through an unsafe edit function</h3>
     <label for="v3-doc-text">Confidential document</label>
-    <textarea id="v3-doc-text">CONFIDENTIAL: Launch authorization code 9481-ALPHA. Budget: $45,000,000.</textarea>
+    <textarea id="v3-doc-text" maxlength="2000">CONFIDENTIAL: Launch authorization code 9481-ALPHA. Budget: $45,000,000.</textarea>
     <div class="row">
       <button type="button" id="v3-init" class="secondary">Re-encrypt with fresh key</button>
       <button type="button" id="v3-extract" class="danger">Extract keystream via 0x00 edit query</button>
     </div>
-    <div class="diff-box" style="margin-top:12px">
+    <div class="diff-box mt-12">
       <strong>Original Ciphertext (hex):</strong> <span id="v3-orig-ct"></span><br>
-      <strong style="margin-top:6px;display:inline-block">Extracted Raw Keystream (hex):</strong> <span id="v3-keystream">[Awaiting extraction]</span><br>
-      <strong style="margin-top:6px;display:inline-block">Recovered Plaintext:</strong> <span id="v3-recovered-text">[Awaiting extraction]</span>
+      <strong class="line-label">Extracted Raw Keystream (hex):</strong> <span id="v3-keystream">[Awaiting extraction]</span><br>
+      <strong class="line-label">Recovered Plaintext:</strong> <span id="v3-recovered-text">[Awaiting extraction]</span>
     </div>
     <div class="verdict" id="v3-verdict"></div>
   </div>
@@ -204,7 +204,7 @@
         <li>Test for malleability: flip a single non-essential bit in ciphertext (e.g. whitespace or timestamp byte) and observe if the server accepts it without raising an authentication error.</li>
         <li>Test for nonce reuse: send two identical plaintext payloads. If the returned ciphertexts are byte-identical across separate requests, the system is reusing nonces.</li>
       </ul>
-      <p class="hint" style="margin:8px 0 0">Both tests confirm a weakness when they fire, but neither clears a system when they do not. Identical-plaintext probing misses a service that reuses a nonce across <em>different</em> plaintexts, and a server that rejects a flipped bit may be failing a parser or schema check rather than verifying a MAC. Treat a negative result as inconclusive and confirm in source.</p>
+      <p class="hint detection-limit">Both tests confirm a weakness when they fire, but neither clears a system when they do not. Identical-plaintext probing misses a service that reuses a nonce across <em>different</em> plaintexts, and a server that rejects a flipped bit may be failing a parser or schema check rather than verifying a MAC. Treat a negative result as inconclusive and confirm in source.</p>
     </li>
     <li><strong>Source review.</strong>
       <ul>
@@ -280,7 +280,7 @@ async function openEtM(encKey, macKey, payload) {
   return new Uint8Array(await crypto.subtle.decrypt(
     { name: "AES-CTR", counter, length: 32 }, k, ciphertext));
 }</code></pre>
-    <p class="hint">The sample uses a 96-bit nonce and a 32-bit counter, matching the structure in <a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a>. The browser demonstrations use a simpler 64/64 split with a fresh key for each run. That split makes the mechanics easier to inspect but is not production guidance.</p>
+    <p class="hint">The sample uses a random 96-bit nonce and a 32-bit counter. <a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a> uses the same 96/32 field widths but constructs its prefix from a 32-bit security-association nonce and a unique 64-bit per-packet IV, with the block counter starting at one. The browser demonstrations use a simpler 64/64 split with a fresh key for each run. These examples explain the mechanics; a deployed protocol must define and enforce its own complete counter construction.</p>
   </div>
 
   <h3>Migrating a format that is already deployed</h3>
@@ -297,42 +297,13 @@ async function openEtM(encKey, macKey, payload) {
     <h3>The same forgery against all three options</h3>
     <p class="hint">One account, one target field, one XOR delta. The attacker does the identical thing in each case — flipping <code>role=user</code> to <code>role=root</code> in the ciphertext. Only what authenticates the ciphertext changes.</p>
     <label for="def-email">Account Email</label>
-    <input type="text" id="def-email" value="alice@example.com">
+    <input type="text" id="def-email" value="alice@example.com" maxlength="254">
     <div class="row">
       <button type="button" id="def-run" class="danger">Run the same tamper against all three</button>
     </div>
-    <div id="def-attack" style="margin-top:14px"></div>
+    <div id="def-attack" class="mt-14"></div>
     <div id="def-results"></div>
     <div class="verdict" id="def-verdict"></div>
-  </div>
-
-  <h2>Real-world evidence</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th scope="col">Case or vulnerability</th><th scope="col">What happened</th><th scope="col">Vector</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><strong>KRACK, 2017</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2017-13077">CVE-2017-13077</a>)</td>
-          <td>A flaw in the WPA2 four-way handshake let an attacker within radio range force a client to reinstall an in-use session key, <em>resetting</em> the packet number so that an already-used nonce was repeated. The resulting keystream reuse allowed replay, decryption, and frame forgery against CCMP and GCMP (<a href="https://www.krackattacks.com/">Vanhoef &amp; Piessens, ACM CCS 2017</a>). Note this is a forced nonce reset, not counter exhaustion.</td>
-          <td>Vector 2</td>
-        </tr>
-        <tr>
-          <td><strong>Microsoft Word &amp; Excel RC4, 2005</strong> (no CVE assigned)</td>
-          <td>Word and Excel encrypted documents with RC4 — a stream cipher rather than a counter mode, but subject to the identical keystream-reuse failure. Re-saving an edited document reused the same key and salt, so two revisions were encrypted under one keystream; XORing the ciphertexts cancelled it and leaked the plaintexts (<a href="https://eprint.iacr.org/2005/007">Hongjun Wu, IACR ePrint 2005/007</a>).</td>
-          <td>Vector 2</td>
-        </tr>
-        <tr>
-          <td><strong>Shadowsocks stream ciphers, 2020</strong> (no CVE assigned)</td>
-          <td>Unauthenticated stream ciphers (AES-CTR, ChaCha20) let an active attacker bit-flip the target address inside a recorded proxy header and replay it, turning the Shadowsocks server into a decryption oracle that delivered plaintext to an attacker-controlled host (<a href="https://github.com/shadowsocks/shadowsocks-org/issues/154">Zhiniang Peng, Qihoo 360 Core Security, February 2020</a>). AEAD ciphers were specified in SIP004 (2017, amended by SIP007), and the project now directs users to <a href="https://shadowsocks.org/doc/aead.html">AEAD rather than stream ciphers</a>.</td>
-          <td>Vector 1</td>
-        </tr>
-        <tr>
-          <td><strong>MEGA, 2022</strong> (no CVE assigned)</td>
-          <td>A boundary case worth reading closely: MEGA <em>did</em> authenticate its file chunks, encrypting them with a custom AES-CCM construction (AES-CTR for confidentiality plus a CBC-MAC tag). The unprotected part was the key hierarchy — per-file node keys were wrapped with <strong>AES-ECB</strong> under the master key with no integrity protection, so a <em>malicious server</em> (MEGA itself, or anyone who compromised its infrastructure) could manipulate those key blocks to mount plaintext-recovery and file-framing attacks (<a href="https://eprint.iacr.org/2022/959">Backendal, Haller &amp; Paterson, IACR ePrint 2022/959</a>; IEEE S&amp;P 2023). Authenticating the message is not enough if the key material is malleable.</td>
-          <td>Root cause 3, applied to key material rather than the stream — not Vector 1</td>
-        </tr>
-      </tbody>
-    </table>
   </div>
 
   <h2>Authentication does not remove operating limits</h2>
@@ -364,12 +335,12 @@ async function openEtM(encKey, macKey, payload) {
   <p>Modern protocols did not reject counter-based encryption. They rejected confidentiality without authentication. That distinction matters because it points directly to the remediation decision rather than turning a composition failure into a claim that CTR itself is broken.</p>
 
   <figure>
-    <img src="diagrams/standards-timeline.svg" alt="Dated timeline of counter mode's standing in the standards, 2001 to 2025 onward. December 2001, SP 800-38A approves CTR as one of five confidentiality modes. January 2004, RFC 3686 puts AES-CTR in IPsec ESP with a 32-bit block counter. November 2007, SP 800-38D defines GCM as counter mode plus a GHASH tag. August 2018, TLS 1.3 permits AEAD only — and all five of its cipher suites are counter mode. April 2023, NIST decides to revise SP 800-38A to add authentication guidance. September 2024, NIST IR 8459 recommends not yet deprecating the mode because no alternative is standardised. 2025 onward, the SP 800-197 accordion series is in development as the named condition for retiring it. Counter mode was never removed; what was removed is using it without a tag.">
-    <figcaption>Read left to right, the mode is approved, absorbed into AEAD constructions, kept when unauthenticated modes were cut, and then explicitly retained pending a replacement. No step on this line deprecates counter mode.</figcaption>
+    <img src="diagrams/standards-timeline.svg" alt="Dated timeline of counter mode's standing in the standards. SP 800-38A approved CTR in 2001. RFC 3686 used AES-CTR in IPsec in 2004. SP 800-38D defined GCM as counter-mode encryption with a GHASH tag in 2007. RFC 8446 defined five AEAD cipher suites for TLS 1.3 in 2018. NIST decided to add authentication guidance to SP 800-38A in 2023 and recommended not yet deprecating CTR in 2024. SP 800-197A accordions remain a candidate replacement under development.">
+    <figcaption>The standards distinguish counter-based encryption from confidentiality without authentication. The first remains in authenticated constructions, while NIST continues to develop possible successors for confidentiality-only modes.</figcaption>
   </figure>
 
   <h3>TLS 1.3 removed confidentiality-only modes, not counter mode</h3>
-  <p><a href="https://www.rfc-editor.org/rfc/rfc8446">TLS 1.3</a> permits only authenticated encryption suites. AES-GCM and AES-CCM retain AES counter-mode encryption and add authentication, while ChaCha20-Poly1305 uses the same broad construction with a different keystream primitive. The protocol change reinforces the central control boundary of this proof of concept.</p>
+  <p>The five cipher suites defined by the base <a href="https://www.rfc-editor.org/rfc/rfc8446">TLS 1.3 specification</a> all use authenticated encryption. AES-GCM and AES-CCM retain AES counter-mode encryption and add authentication, while ChaCha20-Poly1305 uses a counter-driven stream cipher with a Poly1305 tag. <a href="https://www.rfc-editor.org/rfc/rfc9150">RFC 9150</a> later added integrity-only suites that provide authentication without confidentiality. It did not reintroduce confidentiality without authentication. The protocol history therefore supports the control boundary demonstrated here without implying that every TLS 1.3 suite uses CTR.</p>
 
   <div class="table-wrap">
     <table>
@@ -396,14 +367,14 @@ async function openEtM(encKey, macKey, payload) {
     <li><a href="https://csrc.nist.gov/pubs/ir/8459/final">NIST IR 8459</a> — Report on the Block Cipher Modes of Operation in the NIST SP 800-38 Series (September 2024). The Crypto Publication Review Board's survey of the whole series: §4 covers CTR's lack of integrity and TLS 1.3's move to AEAD; §12 carries the recommendation not to deprecate the SP 800-38A modes yet.</li>
     <li><a href="https://csrc.nist.gov/news/2023/decision-to-revise-nist-sp-800-38a">NIST, Decision to Revise SP 800-38A</a> (April 2023) — the revision goals, including authentication guidance, and the condition under which NIST would consider deprecating these modes.</li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc3686">RFC 3686</a> — Using Advanced Encryption Standard (AES) Counter Mode With IPsec Encapsulating Security Payload (ESP).</li>
-    <li><a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446</a> — The Transport Layer Security (TLS) Protocol Version 1.3. §B.4 lists the five cipher suites; the introduction records the pruning to AEAD-only.</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446</a> — The base TLS 1.3 specification. Appendix B.4 lists its five AEAD cipher suites.</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9150">RFC 9150</a> — TLS 1.3 integrity-only cipher suites. These later suites authenticate records without encrypting them.</li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc8439">RFC 8439</a> — ChaCha20 and Poly1305 for IETF Protocols. §2.4 gives the block-counter keystream construction.</li>
     <li><a href="https://eprint.iacr.org/2000/025">Bellare &amp; Namprempre, IACR ePrint 2000/025</a> — Authenticated Encryption: Relations among Notions and Analysis of the Generic Composition Paradigm (why Encrypt-then-MAC, with independently chosen keys, is the composition to use).</li>
     <li><a href="https://csrc.nist.gov/pubs/sp/800/108/r1/upd1/final">NIST SP 800-108 Rev. 1</a> — Recommendation for Key Derivation Using Pseudorandom Functions. The source for deriving independent encryption and MAC keys from one master secret, rather than reusing a single key across both operations.</li>
     <li><a href="https://csrc.nist.gov/pubs/fips/198-1/final">FIPS 198-1</a> — The Keyed-Hash Message Authentication Code (HMAC). Still the current standard, though NIST has <a href="https://csrc.nist.gov/news/2025/proposed-withdrawal-of-fips-198-1-hmac">proposed withdrawing it</a> and moving the content to SP 800-224, which remains in draft. The stated reasons are editorial — the content suits a Special Publication better, and the specification needs updating for SHA-3 block sizes — not a weakness in HMAC.</li>
     <li><a href="https://cryptopals.com/">Cryptopals Crypto Challenges</a> — Set 3 (Challenges 19 &amp; 20: Break fixed-nonce CTR mode) and Set 4 (Challenges 25 &amp; 26: Random access read/write CTR and CTR bitflipping).</li>
-    <li><a href="https://www.krackattacks.com/">Vanhoef &amp; Piessens, ACM CCS 2017</a> — Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2.</li>
-    <li><a href="https://eprint.iacr.org/2022/959">Backendal, Haller &amp; Paterson — MEGA: Malleable Encryption Goes Awry</a> (IACR ePrint 2022/959; IEEE S&amp;P 2023) — malicious-server attacks against MEGA's AES-ECB-wrapped key hierarchy.</li>
+    <li><a href="https://eprint.iacr.org/2016/475">Böck et al., IACR ePrint 2016/475</a> — Nonce-Disrespecting Adversaries. The paper analyzes the additional GCM forgery risk created by nonce reuse.</li>
   </ul>
 </main>
 

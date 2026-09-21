@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -20,6 +18,11 @@ concurrency:
 
 jobs:
   deploy:
+    name: deploy
+    permissions:
+      contents: read
+      pages: write # publish the uploaded artifact to GitHub Pages
+      id-token: write # authenticate the deployment to the Pages environment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

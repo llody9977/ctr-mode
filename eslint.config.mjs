@@ -53,5 +53,5 @@ export default [
       ],
     },
   },
-  { ignores: ["node_modules/", "docs/diagrams/", "reviews/", "scripts/"] },
+  { ignores: ["node_modules/", "docs/diagrams/"] },
 ];

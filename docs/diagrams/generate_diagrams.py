@@ -1,14 +1,12 @@
-"""Generate the hand-authored theme-aware diagrams embedded in docs/index.html.
+"""Generate the hand-authored diagrams embedded in docs/index.html.
 
 The set is defined by `DIAGRAMS` at the bottom of this file — deliberately not
 restated as a count here, because a hardcoded number silently goes stale the
 next time a figure is added or removed.
 
-The SVGs are theme-aware: theme-dependent colors (card/panel backgrounds, ink and
-muted text, neutral fills, arrows) are CSS variables with a `prefers-color-scheme:
-dark` override, so a single committed SVG renders correctly in both GitHub themes
-when embedded as an image. Semantic colors (navy, red=leak/danger, green=safe,
-purple, amber, blue) stay fixed — they read on either background.
+The SVGs use the same light editorial palette as the Secret Exposure site so the
+figures remain visually consistent when embedded in the article or detached into
+another document. Semantic colors still distinguish danger, safety, and emphasis.
 
 Run: `python3 docs/diagrams/generate_diagrams.py` (writes the .svg files beside it).
 """
@@ -18,23 +16,21 @@ import re
 OUT = pathlib.Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
 
-SANS = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+SANS = "Arial, Helvetica, sans-serif"
 MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
-# Sentinels routed to CSS classes (theme-aware)
+# Sentinels routed to the shared editorial palette.
 INK, MUTED, NEU_F, NEU_S = "@ink", "@muted", "@neuf", "@neus"
 ARROW = "@arw"
 
-# Fixed semantic colors (read on both light and dark themes)
-NAVY = "#1f3a5f"
-RED, GREEN, PURPLE, AMBER, GRAY, BLUE = "#dc2626", "#16a34a", "#6d28d9", "#b45309", "#64748b", "#2563eb"
+# Fixed semantic colors for danger, safety, and emphasis.
+NAVY = "#006da0"
+RED, GREEN, PURPLE, AMBER, GRAY, BLUE = "#b42318", "#087c83", "#6d28d9", "#9a5b00", "#64748b", "#006da0"
 
 STYLE = (
     '<style>'
-    ':root{--card:#ffffff;--panel:#f8fafc;--border:#e2e8f0;--ink:#0f172a;--muted:#475569;'
-    '--neuf:#f1f5f9;--neus:#cbd5e1;--arw:#94a3b8}'
-    '@media (prefers-color-scheme:dark){:root{--card:#0d1117;--panel:#161b22;--border:#30363d;'
-    '--ink:#e6edf3;--muted:#9aa4b2;--neuf:#1c2330;--neus:#3d444d;--arw:#6e7681}}'
+    ':root{--card:#ffffff;--panel:#f0f8fb;--border:#d3e4eb;--ink:#142f40;--muted:#486371;'
+    '--neuf:#f0f8fb;--neus:#b9d3de;--arw:#7f9aa6}'
     '.cardb{fill:var(--card);stroke:var(--border)}.card{fill:var(--card)}'
     '.panel{fill:var(--panel);stroke:var(--border)}'
     '.fneu{fill:var(--neuf)}.sneu{stroke:var(--neus)}'
@@ -48,9 +44,8 @@ def esc(s):
 
 # A theme sentinel resolves to a CSS class, never to a literal attribute value.
 # The distinction matters because `fill="@neuf"` is not a valid SVG paint: browsers
-# discard the invalid value and fall back to the initial one, black. Against the
-# dark palette a black box with light --ink text reads as deliberate, so the fault
-# is invisible in dark theme and renders as an unreadable black box in light theme.
+# discard the invalid value and fall back to the initial one, black. That failure
+# can look deliberate in isolation while making the article figure unreadable.
 # Per-property classes, rather than one combined class, so a neutral fill composes
 # with a semantic stroke — the exact case that previously fell through to a literal.
 FILL_CLASS = {INK: "ink", MUTED: "muted", NEU_F: "fneu"}
@@ -261,7 +256,7 @@ def d2():
 
     b.append(text(W / 2, 366, "Solid arrow = primary root cause   ·   Dashed arrow = contributing root cause",
                   size=10.5, fill=MUTED, weight="500"))
-    b.append(text(W / 2, 386, "Scope: educational analysis of CTR mode failure modes; demonstrations execute locally in the browser/Node test suite.",
+    b.append(text(W / 2, 386, "Scope: educational analysis of CTR mode failure modes; demonstrations run in the browser against self-contained simulations.",
                   size=10.5, fill=MUTED))
     return svg(W, 402, "Three Root Causes and Four Attack Vectors", "".join(b),
                subtitle="every CTR mode vulnerability traces back to malleability, keystream determinism, or missing authentication")
@@ -290,7 +285,7 @@ def d3():
     b.append(text(320, 300, "=", size=18, fill=MUTED, weight="700"))
     b.append(box(350, 278, 490, 36, "P' = \"email=alice&role=root\"   (Privilege Escalation Verified!)", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=12, weight="700"))
 
-    b.append(text(W / 2, 405, "Scope: ProfileService in attacks.mjs is a local in-memory simulation for defensive education.", size=10.5, fill=MUTED))
+    b.append(text(W / 2, 405, "Scope: the profile service is a self-contained browser simulation for defensive education.", size=10.5, fill=MUTED))
     return svg(W, 420, "Vector 1 — Precision Bit-Flipping Mechanics", "".join(b),
                subtitle="because CTR uses bitwise XOR with zero diffusion, flipping C[i] directly flips P[i]")
 
@@ -310,7 +305,7 @@ def d4():
     b.append(box(50, 270, 380, 56, "Known Plaintext:\nP₂ = (C₁ ⊕ C₂) ⊕ P₁\nInstant recovery of full P₂ if P₁ is known", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
     b.append(box(460, 270, 380, 56, "Statistical Crib Dragging:\nDrag natural language words ('the', 'http')\nReadable text appears at matching offsets", fill="#ede9fe", stroke=PURPLE, tc="#5b21b6", size=11.5, lh=14))
 
-    b.append(text(W / 2, 422, "Scope: educational demonstration of the two-time pad break; runs locally in attacks.mjs and test/attacks.test.mjs.", size=10.5, fill=MUTED))
+    b.append(text(W / 2, 422, "Scope: educational browser demonstration of the two-time pad failure using synthetic messages.", size=10.5, fill=MUTED))
     return svg(W, 436, "Vector 2 — Two-Time Pad Keystream Reuse", "".join(b),
                subtitle="reusing a nonce destroys confidentiality by collapsing ciphertexts into plaintext XOR")
 
@@ -332,7 +327,7 @@ def d5():
     b.append(text(392, 304, "⇒", size=17, fill=MUTED, weight="700"))
     b.append(box(414, 282, 426, 34, "P = C ⊕ S — whole plaintext, one request", fill="#fee2e2", stroke=RED, tc="#991b1b", mono=True, size=11))
 
-    b.append(text(W / 2, 386, "Scope: DocumentEditorService in attacks.mjs is a local in-memory oracle for defensive education.", size=10.5, fill=MUTED))
+    b.append(text(W / 2, 386, "Scope: the document editor is a self-contained browser simulation for defensive education.", size=10.5, fill=MUTED))
     return svg(W, 400, "Vector 3 — Keystream Extraction via an Edit Oracle", "".join(b),
                subtitle="an API that re-encrypts attacker-chosen plaintext under an unchanged counter leaks the keystream")
 
@@ -407,7 +402,7 @@ def d7():
     b.append(text(W / 2, 352, "Counter mode was never removed — what was removed is using it without a tag. "
                               "Every step right of 2018 keeps the keystream and adds authentication.",
                   size=11, fill=INK, weight="600"))
-    b.append(text(W / 2, 374, "Scope: educational summary of published NIST and IETF status as of August 2026; "
+    b.append(text(W / 2, 374, "Scope: educational summary of published NIST and IETF status as of September 2026; "
                               "dates from each publication or its CSRC listing. Not legal or compliance advice.",
                   size=10.5, fill=MUTED))
     return svg(W, 390, "How counter mode came through the move to authenticated encryption", "".join(b),
@@ -441,7 +436,7 @@ def d8():
         BLUE))
 
     b.append(split(
-        238, 64, 64, "This repository's demo helper — deliberately different",
+        238, 64, 64, "This browser proof of concept uses a deliberately different split",
         "64 bits is too narrow for random nonces\nat scale; every demo run takes a fresh key",
         "Far more counter than any demo needs;\nthe width is not the point being taught",
         GRAY))

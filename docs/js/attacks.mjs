@@ -215,6 +215,15 @@ export async function recoverPlaintextViaEditOracle(editorService) {
 // Uses 2 ** counterBits rather than 1 << counterBits: JS bitwise operands are
 // coerced to *signed* 32-bit, so 1 << 31 is negative and 1 << 32 wraps to 1.
 export async function simulateCounterRollover(keyBytes, initialCounterBlock, counterBits = 2, numBlocks = 8) {
+  if (!Number.isInteger(counterBits) || counterBits < 1 || counterBits > 16) {
+    throw new RangeError("counterBits must be an integer from 1 to 16 for this simulator");
+  }
+  if (!Number.isInteger(numBlocks) || numBlocks < 1) {
+    throw new RangeError("numBlocks must be a positive integer");
+  }
+  if (!(initialCounterBlock instanceof Uint8Array) || initialCounterBlock.length !== BLOCK_SIZE) {
+    throw new TypeError(`initialCounterBlock must be a ${BLOCK_SIZE}-byte Uint8Array`);
+  }
   const states = 2 ** counterBits;
   const maxCounterValue = states - 1;
   // Enforced, not merely documented: a caller that widens the counter without

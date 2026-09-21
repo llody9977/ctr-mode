@@ -12,6 +12,10 @@ Please include:
 - a minimal reproduction or proof of concept;
 - the impact you believe it has.
 
+## Supported version
+
+This educational project does not maintain parallel release lines. Security fixes target the latest commit on `main`; older commits and forks are not supported versions.
+
 ## What to expect
 
 This project is maintained on a best-effort basis. **No response time, acknowledgement, remediation, or fix is guaranteed, and no timeline or ETA is committed.** Reports are reviewed as time allows.

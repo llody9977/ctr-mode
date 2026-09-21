@@ -95,6 +95,24 @@ test("Encrypting all-zeros under CTR extracts raw keystream S", async () => {
   assert.equal(toHex(manualXor), toHex(ct));
 });
 
+test("crypto helpers reject malformed keys, counters, nonces, and hexadecimal input", async () => {
+  assert.throws(() => fromHex("abc"), /even number/);
+  assert.throws(() => fromHex("zz"), /hexadecimal/);
+  assert.throws(() => makeCounterBlock(new Uint8Array(7)), /nonce must be 8 bytes/);
+  await assert.rejects(
+    () => aesCtrEncrypt(new Uint8Array(15), utf8("test"), new Uint8Array(16)),
+    /AES key must be 16, 24, 32 bytes/
+  );
+  await assert.rejects(
+    () => aesCtrEncrypt(randomKey(), utf8("test"), new Uint8Array(15)),
+    /counter block must be 16 bytes/
+  );
+  await assert.rejects(
+    () => aesCtrEncrypt(randomKey(), utf8("test"), new Uint8Array(16), 0),
+    /counter length must be an integer from 1 to 128 bits/
+  );
+});
+
 test("Vector 1 — Precision bit-flipping forges admin role with zero errors", async () => {
   const service = new ProfileService();
   const email = "alice@example.com";
@@ -224,6 +242,12 @@ test("Vector 4 — a run too short to wrap the counter is rejected, not returned
     assert.equal(maxCounterValue, 2 ** bits - 1);
     assert.equal(duplicates.length, 2 ** bits, `${bits}-bit counter must regenerate every keystream block once`);
   }
+});
+
+test("Vector 4 — simulator rejects unsupported counter fields and malformed blocks", async () => {
+  const key = randomKey();
+  await assert.rejects(() => simulateCounterRollover(key, new Uint8Array(16), 17, 4), /1 to 16/);
+  await assert.rejects(() => simulateCounterRollover(key, new Uint8Array(15), 2, 8), /16-byte Uint8Array/);
 });
 
 test("Crib dragging is bounded in UTF-8 bytes, not JS characters", async () => {

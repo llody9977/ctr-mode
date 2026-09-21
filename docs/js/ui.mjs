@@ -326,6 +326,11 @@ async function runDefenceComparison() {
 // Event Listeners
 // ===========================================================================
 addEventListener("DOMContentLoaded", () => {
+  for (const el of document.querySelectorAll(".verdict")) {
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+  }
+
   // Vector 1
   $("v1-issue").addEventListener("click", issueNormalToken);
   $("v1-flip").addEventListener("click", runBitFlip);

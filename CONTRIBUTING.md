@@ -9,12 +9,10 @@ Thanks for your interest in ctr-mode.
 
 ## Proposing changes
 
-0. Install the local hooks once: `pipx install pre-commit && pre-commit install && pre-commit install --hook-type pre-push`. They block a commit or push that contains a secret.
-1. Fork and branch from `main` (`feature/short-description` or `fix/short-description`).
-2. Keep the change focused; one logical change per pull request.
-3. Add or update tests, and make sure the existing suite and linters pass locally.
-4. Run the project's pre-check-in review before opening the PR.
-5. Open a pull request against `main` and fill in the PR template.
+1. Create a focused branch from `main`. External contributors should work from a fork, while the maintainer can use a branch in this repository.
+2. Keep one logical change in each pull request.
+3. Add or update tests when behavior changes. The repository checks run automatically when the pull request is opened.
+4. Open the pull request against `main` and complete the template.
 
 ## Commit and PR conventions
 
